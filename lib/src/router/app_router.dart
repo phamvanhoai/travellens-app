@@ -20,8 +20,19 @@ import '../screens/payment_history_screen.dart';
 import '../screens/reference_screens.dart';
 import '../widgets/app_shell.dart';
 
+class _RouterRefreshNotifier extends ChangeNotifier {
+  void refresh() => notifyListeners();
+}
+
+final _routerRefreshProvider = Provider<_RouterRefreshNotifier>((ref) {
+  final notifier = _RouterRefreshNotifier();
+  ref.listen(authProvider, (_, _) => notifier.refresh());
+  ref.onDispose(notifier.dispose);
+  return notifier;
+});
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final auth = ref.watch(authProvider);
+  final refreshNotifier = ref.watch(_routerRefreshProvider);
   final protected = [
     '/account',
     '/profile',
@@ -39,7 +50,9 @@ final routerProvider = Provider<GoRouter>((ref) {
   ];
   return GoRouter(
     initialLocation: '/home',
+    refreshListenable: refreshNotifier,
     redirect: (_, state) {
+      final auth = ref.read(authProvider);
       if (!auth.ready) return state.uri.path == '/splash' ? null : '/splash';
       if (state.uri.path == '/splash')
         return auth.authenticated ? '/home' : '/home';
@@ -235,34 +248,3 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
-
-class _InfoPage extends StatelessWidget {
-  const _InfoPage({
-    required this.title,
-    required this.message,
-    required this.icon,
-  });
-  final String title, message;
-  final IconData icon;
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(title)),
-    body: Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 64, color: const Color(0xFF0E7490)),
-            const SizedBox(height: 18),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 17),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}

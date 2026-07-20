@@ -95,6 +95,11 @@ class AuthController extends Notifier<AuthState> {
         text.contains('verification') ||
         text.contains('unverified') ||
         text.contains('not verified') ||
+        text.contains('account not active') ||
+        text.contains('account is not active') ||
+        text.contains('inactive account') ||
+        text.contains('account_inactive') ||
+        text.contains('not_active') ||
         text.contains('otp') ||
         text.contains('chưa xác thực');
   }
@@ -123,6 +128,18 @@ class AuthController extends Notifier<AuthState> {
     state = const AuthState(ready: true, loading: true);
     try {
       await _dio.post('/auth/verify-email', data: {'email': email, 'otp': otp});
+      state = const AuthState(ready: true);
+      return true;
+    } catch (e) {
+      state = AuthState(ready: true, error: apiError(e));
+      return false;
+    }
+  }
+
+  Future<bool> resendVerification(String email) async {
+    state = const AuthState(ready: true, loading: true);
+    try {
+      await _dio.post('/auth/resend-verification', data: {'email': email});
       state = const AuthState(ready: true);
       return true;
     } catch (e) {

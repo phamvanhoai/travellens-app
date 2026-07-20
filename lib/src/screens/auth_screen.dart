@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,6 +29,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   bool verifying = false;
   String? registrationMessage;
   String? validationError;
+  Timer? resendTimer;
+  int resendSeconds = 0;
   late final AnimationController _anim;
   late final Animation<double> _fade;
   late final Animation<Offset> _slide;
@@ -53,6 +57,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     password.dispose();
     confirmPassword.dispose();
     otp.dispose();
+    resendTimer?.cancel();
     _anim.dispose();
     super.dispose();
   }
@@ -107,6 +112,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         registrationMessage =
             'Registration successful. Check your email for the OTP.';
       });
+      _startResendCooldown();
     } else {
       context.go('/home');
     }
@@ -127,6 +133,34 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       const SnackBar(content: Text('Email verified. You can now sign in.')),
     );
     context.go('/login');
+  }
+
+  void _startResendCooldown() {
+    resendTimer?.cancel();
+    setState(() => resendSeconds = 60);
+    resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return timer.cancel();
+      if (resendSeconds <= 1) {
+        timer.cancel();
+        setState(() => resendSeconds = 0);
+      } else {
+        setState(() => resendSeconds--);
+      }
+    });
+  }
+
+  Future<void> resendOtp() async {
+    if (resendSeconds > 0) return;
+    final ok = await ref
+        .read(authProvider.notifier)
+        .resendVerification(email.text.trim());
+    if (!mounted || !ok) return;
+    otp.clear();
+    setState(() {
+      validationError = null;
+      registrationMessage = 'A new OTP has been sent to your email.';
+    });
+    _startResendCooldown();
   }
 
   @override
@@ -609,6 +643,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                     ),
                                   )
                                 : const Text('Verify email'),
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        TextButton(
+                          onPressed: auth.loading || resendSeconds > 0
+                              ? null
+                              : resendOtp,
+                          child: Text(
+                            resendSeconds > 0
+                                ? 'Resend code in ${resendSeconds}s'
+                                : 'Resend verification code',
+                            style: const TextStyle(fontSize: 11.5),
                           ),
                         ),
                       ],

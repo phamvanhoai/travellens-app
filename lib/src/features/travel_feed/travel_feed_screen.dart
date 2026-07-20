@@ -31,6 +31,15 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
   String? error;
   int page = 1, totalPages = 1;
   String sort = 'newest';
+  int feedTab = 0;
+
+  List<Map<String, dynamic>> get visiblePosts => feedTab == 2
+      ? posts.where((post) {
+          final author = post['author'];
+          return post['is_following'] == true ||
+              (author is Map && author['is_following'] == true);
+        }).toList()
+      : posts;
 
   @override
   void initState() {
@@ -134,17 +143,14 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
 
   @override
   Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
-    value: SystemUiOverlayStyle.light,
+    value: SystemUiOverlayStyle.dark,
     child: Scaffold(
       backgroundColor: AppColors.surface,
       floatingActionButton: ref.watch(authProvider).authenticated
-          ? FloatingActionButton.extended(
+          ? FloatingActionButton(
               onPressed: openComposer,
-              icon: const Icon(Icons.add_rounded),
-              label: Text(
-                'Share moment',
-                style: AppTextStyles.button.copyWith(color: Colors.white),
-              ),
+              mini: true,
+              child: const Icon(Icons.add_rounded),
             )
           : null,
       body: RefreshIndicator(
@@ -158,6 +164,8 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
                 search: search,
                 onSearch: load,
                 sort: sort,
+                selectedTab: feedTab,
+                onTabChanged: (value) => setState(() => feedTab = value),
                 onSortChanged: (v) {
                   sort = v;
                   load();
@@ -166,27 +174,28 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
             ),
 
             // Stories
-            SliverToBoxAdapter(
-              child: _StoriesSection(
-                stories: stories,
-                onTap: openStory,
-                onAdd: ref.watch(authProvider).authenticated
-                    ? openStoryComposer
-                    : null,
+            if (feedTab == 1)
+              SliverToBoxAdapter(
+                child: _StoriesSection(
+                  stories: stories,
+                  onTap: openStory,
+                  onAdd: ref.watch(authProvider).authenticated
+                      ? openStoryComposer
+                      : null,
+                ),
               ),
-            ),
 
             // Error
-            if (error != null)
+            if (feedTab != 1 && error != null)
               SliverToBoxAdapter(
                 child: _ErrorBanner(error: error!, onRetry: load),
               )
-            else if (loading)
+            else if (feedTab != 1 && loading)
               const SliverPadding(
                 padding: EdgeInsets.all(16),
                 sliver: _FeedSkeleton(),
               )
-            else if (posts.isEmpty)
+            else if (feedTab != 1 && visiblePosts.isEmpty)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 60),
@@ -197,42 +206,43 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
                   ),
                 ),
               )
-            else
+            else if (feedTab != 1)
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+                padding: const EdgeInsets.fromLTRB(18, 10, 18, 8),
                 sliver: SliverList.separated(
-                  itemCount: posts.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 14),
+                  itemCount: visiblePosts.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (_, i) => _PostCard(
-                    post: posts[i],
-                    onLike: () => toggleLike(posts[i]),
-                    onComment: () => openComments(posts[i]),
-                    onShare: () => share(posts[i]),
+                    post: visiblePosts[i],
+                    onLike: () => toggleLike(visiblePosts[i]),
+                    onComment: () => openComments(visiblePosts[i]),
+                    onShare: () => share(visiblePosts[i]),
                   ),
                 ),
               ),
 
             // Load more
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
-                child: loadingMore
-                    ? const Center(child: CircularProgressIndicator())
-                    : page < totalPages
-                    ? OutlinedButton(
-                        onPressed: () => load(more: true),
-                        child: const Text('Load more posts'),
-                      )
-                    : posts.isNotEmpty
-                    ? Center(
-                        child: Text(
-                          "You're all caught up ✓",
-                          style: AppTextStyles.bodySmall,
-                        ),
-                      )
-                    : const SizedBox.shrink(),
+            if (feedTab != 1)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
+                  child: loadingMore
+                      ? const Center(child: CircularProgressIndicator())
+                      : page < totalPages
+                      ? OutlinedButton(
+                          onPressed: () => load(more: true),
+                          child: const Text('Load more posts'),
+                        )
+                      : posts.isNotEmpty
+                      ? Center(
+                          child: Text(
+                            "You're all caught up ✓",
+                            style: AppTextStyles.bodySmall,
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -298,6 +308,160 @@ class _FeedHeader extends StatelessWidget {
     required this.onSearch,
     required this.sort,
     required this.onSortChanged,
+    required this.selectedTab,
+    required this.onTabChanged,
+  });
+  final TextEditingController search;
+  final VoidCallback onSearch;
+  final String sort;
+  final ValueChanged<String> onSortChanged;
+  final int selectedTab;
+  final ValueChanged<int> onTabChanged;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.white,
+    child: SafeArea(
+      bottom: false,
+      child: Column(
+        children: [
+          SizedBox(
+            height: 46,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 18, right: 7),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Cộng đồng',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Tìm bài viết',
+                    onPressed: () => _openSearch(context),
+                    icon: const Icon(Icons.search_rounded, size: 19),
+                  ),
+                  PopupMenuButton<String>(
+                    initialValue: sort,
+                    onSelected: onSortChanged,
+                    icon: const Icon(
+                      Icons.notifications_none_rounded,
+                      size: 19,
+                    ),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'newest', child: Text('Mới nhất')),
+                      PopupMenuItem(value: 'oldest', child: Text('Cũ nhất')),
+                      PopupMenuItem(value: 'popular', child: Text('Phổ biến')),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 40,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(18, 4, 18, 5),
+              itemCount: 3,
+              separatorBuilder: (_, _) => const SizedBox(width: 7),
+              itemBuilder: (_, index) => _CommunityTab(
+                label: const ['Bài viết', 'Stories', 'Đang theo dõi'][index],
+                selected: selectedTab == index,
+                onTap: () => onTabChanged(index),
+              ),
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.borderLight),
+        ],
+      ),
+    ),
+  );
+
+  Future<void> _openSearch(BuildContext context) async {
+    final apply = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Tìm bài viết'),
+        content: SizedBox(
+          height: 46,
+          child: TextField(
+            controller: search,
+            autofocus: true,
+            textInputAction: TextInputAction.search,
+            onSubmitted: (_) => Navigator.pop(dialogContext, true),
+            decoration: const InputDecoration(
+              hintText: 'Địa điểm, trải nghiệm...',
+              prefixIcon: Icon(Icons.search_rounded, size: 19),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              search.clear();
+              Navigator.pop(dialogContext, true);
+            },
+            child: const Text('Xóa lọc'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Tìm'),
+          ),
+        ],
+      ),
+    );
+    if (apply == true) onSearch();
+  }
+}
+
+class _CommunityTab extends StatelessWidget {
+  const _CommunityTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: selected ? const Color(0xFF172554) : Colors.transparent,
+    borderRadius: BorderRadius.circular(15),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(15),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 13),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : AppColors.muted,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+// Legacy promotional header retained for compatibility with earlier variants.
+// ignore: unused_element
+class _LegacyFeedHeader extends StatelessWidget {
+  const _LegacyFeedHeader({
+    required this.search,
+    required this.onSearch,
+    required this.sort,
+    required this.onSortChanged,
   });
   final TextEditingController search;
   final VoidCallback onSearch;
@@ -310,32 +474,31 @@ class _FeedHeader extends StatelessWidget {
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF065F52), Color(0xFF0A7E6E), Color(0xFF0891B2)],
-        stops: [0, 0.5, 1],
+        colors: AppColors.brandGradient,
       ),
-      borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+      borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
     ),
     child: SafeArea(
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+            padding: const EdgeInsets.fromLTRB(18, 8, 8, 0),
             child: Row(
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: .15),
-                    borderRadius: BorderRadius.circular(11),
+                    borderRadius: BorderRadius.circular(9),
                   ),
                   child: const Icon(
                     Icons.travel_explore_rounded,
                     color: Colors.white,
-                    size: 20,
+                    size: 18,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 9),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -361,16 +524,16 @@ class _FeedHeader extends StatelessWidget {
                     PopupMenuItem(value: 'popular', child: Text('Popular')),
                   ],
                   child: Container(
-                    width: 42,
-                    height: 42,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: .15),
-                      borderRadius: BorderRadius.circular(13),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(
                       Icons.tune_rounded,
                       color: Colors.white,
-                      size: 20,
+                      size: 18,
                     ),
                   ),
                 ),
@@ -378,46 +541,46 @@ class _FeedHeader extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+            padding: const EdgeInsets.fromLTRB(18, 11, 18, 4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "See the world through\ntravelers' eyes.",
-                  style: AppTextStyles.h3White.copyWith(fontSize: 20),
+                  "See the world through travelers' eyes.",
+                  style: AppTextStyles.h3White.copyWith(fontSize: 15),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Real stories. Real places. Your next inspiration.',
-                  style: AppTextStyles.bodySmallWhite,
+                  style: AppTextStyles.bodySmallWhite.copyWith(fontSize: 9.5),
                 ),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+            padding: const EdgeInsets.fromLTRB(18, 7, 18, 12),
             child: Container(
-              padding: const EdgeInsets.all(5),
+              padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: .15),
-                    blurRadius: 20,
-                    offset: const Offset(0, 6),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
               child: Row(
                 children: [
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 7),
                   const Icon(
                     Icons.search_rounded,
                     color: AppColors.muted,
-                    size: 20,
+                    size: 18,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 5),
                   Expanded(
                     child: TextField(
                       controller: search,
@@ -430,9 +593,7 @@ class _FeedHeader extends StatelessWidget {
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
                         filled: false,
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 12,
-                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 9),
                         hintStyle: AppTextStyles.body.copyWith(
                           color: AppColors.subtle,
                         ),
@@ -442,10 +603,11 @@ class _FeedHeader extends StatelessWidget {
                   FilledButton(
                     onPressed: onSearch,
                     style: FilledButton.styleFrom(
-                      minimumSize: const Size(50, 42),
+                      minimumSize: const Size(42, 36),
+                      maximumSize: const Size(42, 36),
                       padding: EdgeInsets.zero,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(9),
                       ),
                     ),
                     child: const Icon(Icons.arrow_forward_rounded, size: 18),
@@ -481,9 +643,9 @@ class _StoriesSection extends StatelessWidget {
     final groups = grouped.values.toList();
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(0, 6, 0, 0),
+      margin: const EdgeInsets.fromLTRB(0, 5, 0, 0),
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      padding: const EdgeInsets.fromLTRB(18, 10, 18, 9),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -493,10 +655,13 @@ class _StoriesSection extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Travel Stories', style: AppTextStyles.h4),
+                    Text(
+                      'Stories',
+                      style: AppTextStyles.h4.copyWith(fontSize: 13),
+                    ),
                     Text(
                       'Shared in the last 24 hours',
-                      style: AppTextStyles.caption,
+                      style: AppTextStyles.caption.copyWith(fontSize: 9),
                     ),
                   ],
                 ),
@@ -505,15 +670,16 @@ class _StoriesSection extends StatelessWidget {
                 FilledButton.tonalIcon(
                   onPressed: onAdd,
                   style: FilledButton.styleFrom(
-                    minimumSize: const Size(0, 36),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    minimumSize: const Size(0, 30),
+                    maximumSize: const Size(80, 30),
+                    padding: const EdgeInsets.symmetric(horizontal: 9),
                     backgroundColor: AppColors.successSoft,
                     foregroundColor: AppColors.success,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  icon: const Icon(Icons.add_rounded, size: 16),
+                  icon: const Icon(Icons.add_rounded, size: 14),
                   label: Text(
                     'Add',
                     style: AppTextStyles.label.copyWith(
@@ -523,9 +689,9 @@ class _StoriesSection extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           SizedBox(
-            height: 78,
+            height: 64,
             child: groups.isEmpty
                 ? Align(
                     alignment: Alignment.centerLeft,
@@ -537,7 +703,7 @@ class _StoriesSection extends StatelessWidget {
                 : ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: groups.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 14),
+                    separatorBuilder: (_, _) => const SizedBox(width: 10),
                     itemBuilder: (_, i) {
                       final story = groups[i].first;
                       final originalIndex = stories.indexOf(story);
@@ -546,13 +712,13 @@ class _StoriesSection extends StatelessWidget {
                       return GestureDetector(
                         onTap: () => onTap(originalIndex),
                         child: SizedBox(
-                          width: 60,
+                          width: 50,
                           child: Column(
                             children: [
                               Container(
-                                width: 52,
-                                height: 52,
-                                padding: const EdgeInsets.all(2.5),
+                                width: 44,
+                                height: 44,
+                                padding: const EdgeInsets.all(2),
                                 decoration: const BoxDecoration(
                                   shape: BoxShape.circle,
                                   gradient: LinearGradient(
@@ -579,19 +745,20 @@ class _StoriesSection extends StatelessWidget {
                                             author.characters.first
                                                 .toUpperCase(),
                                             style: AppTextStyles.label.copyWith(
-                                              fontSize: 16,
+                                              fontSize: 13,
                                             ),
                                           )
                                         : null,
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 5),
+                              const SizedBox(height: 3),
                               Text(
                                 author,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: AppTextStyles.caption.copyWith(
+                                  fontSize: 8.5,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -632,45 +799,48 @@ class _PostCard extends StatelessWidget {
 
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(14),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Author header
           Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(11),
             child: Row(
               children: [
                 AppAvatar(
                   name: authorName,
                   imageUrl: avatar.isEmpty ? null : avatar,
-                  radius: 22,
+                  radius: 18,
                 ),
-                const SizedBox(width: 11),
+                const SizedBox(width: 9),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(authorName, style: AppTextStyles.label),
+                      Text(
+                        authorName,
+                        style: AppTextStyles.label.copyWith(fontSize: 11.5),
+                      ),
                       Text(
                         _date('${post['created_at'] ?? ''}'),
-                        style: AppTextStyles.caption,
+                        style: AppTextStyles.caption.copyWith(fontSize: 9),
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  width: 34,
-                  height: 34,
+                  width: 30,
+                  height: 30,
                   decoration: BoxDecoration(
                     color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(9),
                   ),
                   child: const Icon(
                     Icons.more_horiz_rounded,
                     color: AppColors.muted,
-                    size: 18,
+                    size: 16,
                   ),
                 ),
               ],
@@ -680,21 +850,24 @@ class _PostCard extends StatelessWidget {
           // Content
           if ('${post['content'] ?? ''}'.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(15, 0, 15, 12),
-              child: Text('${post['content']}', style: AppTextStyles.body),
+              padding: const EdgeInsets.fromLTRB(11, 0, 11, 9),
+              child: Text(
+                '${post['content']}',
+                style: AppTextStyles.body.copyWith(fontSize: 11.5, height: 1.4),
+              ),
             ),
 
           // Location
           if (post['destination_name'] != null || post['location_name'] != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(15, 0, 15, 12),
+              padding: const EdgeInsets.fromLTRB(11, 0, 11, 9),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
+                      horizontal: 8,
+                      vertical: 4,
                     ),
                     decoration: BoxDecoration(
                       color: AppColors.accent.withValues(alpha: .08),
@@ -706,7 +879,7 @@ class _PostCard extends StatelessWidget {
                         const Icon(
                           Icons.location_on_rounded,
                           color: AppColors.accent,
-                          size: 14,
+                          size: 12,
                         ),
                         const SizedBox(width: 4),
                         Text(
@@ -728,17 +901,17 @@ class _PostCard extends StatelessWidget {
 
           // Stats
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
             child: Row(
               children: [
                 Text(
                   '${post['like_count'] ?? 0} likes',
-                  style: AppTextStyles.caption,
+                  style: AppTextStyles.caption.copyWith(fontSize: 9),
                 ),
                 const Spacer(),
                 Text(
                   '${post['comment_count'] ?? 0} comments · ${post['share_count'] ?? 0} shares',
-                  style: AppTextStyles.caption,
+                  style: AppTextStyles.caption.copyWith(fontSize: 9),
                 ),
               ],
             ),
@@ -804,19 +977,19 @@ class _ActionBtn extends StatelessWidget {
     onPressed: onTap,
     style: TextButton.styleFrom(
       foregroundColor: active ? activeColor : AppColors.muted,
-      padding: const EdgeInsets.symmetric(vertical: 13),
+      padding: const EdgeInsets.symmetric(vertical: 9),
       shape: const RoundedRectangleBorder(),
     ),
     child: Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(icon, size: 18, color: active ? activeColor : AppColors.muted),
-        const SizedBox(width: 6),
+        Icon(icon, size: 16, color: active ? activeColor : AppColors.muted),
+        const SizedBox(width: 5),
         Text(
           label,
           style: AppTextStyles.label.copyWith(
             color: active ? activeColor : AppColors.muted,
-            fontSize: 13,
+            fontSize: 10.5,
           ),
         ),
       ],
@@ -842,7 +1015,7 @@ class _PhotoGrid extends StatelessWidget {
       return GestureDetector(
         onTap: () => open(0),
         child: AspectRatio(
-          aspectRatio: 4 / 3,
+          aspectRatio: 16 / 10,
           child: CachedNetworkImage(
             imageUrl: AppConfig.assetUrl(
               '${photos.first['image_url'] ?? photos.first['photo_url'] ?? ''}',
@@ -853,7 +1026,7 @@ class _PhotoGrid extends StatelessWidget {
       );
 
     return SizedBox(
-      height: 256,
+      height: 220,
       child: GridView.builder(
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
