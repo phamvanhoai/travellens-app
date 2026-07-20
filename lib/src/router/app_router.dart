@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/auth_controller.dart';
+import '../features/destinations/destinations_screen.dart';
+import '../features/destinations/destination_detail_screen.dart';
+import '../features/view360/view360_screen.dart';
+import '../features/locations/location_detail_screen.dart';
+import '../features/travel_feed/travel_feed_screen.dart';
 import '../screens/account_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/booking_screen.dart';
@@ -60,14 +65,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
           GoRoute(
             path: '/destinations',
-            builder: (_, _) => const EntityListScreen(
-              config: EntityConfig(
-                title: 'Destinations',
-                endpoint: '/travel-destinations',
-                keys: ['destinations', 'travel_destinations'],
-                detailBase: '/destinations',
-              ),
-            ),
+            builder: (_, _) => const DestinationsScreen(),
           ),
           GoRoute(
             path: '/tours',
@@ -82,23 +80,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/travel-feed',
-            builder: (_, _) => const EntityListScreen(
-              config: EntityConfig(
-                title: 'Travel Feed',
-                endpoint: '/travel-feed',
-                keys: ['posts', 'feed'],
-                detailBase: '/travel-feed',
-              ),
-            ),
+            builder: (_, _) => const TravelFeedScreen(),
           ),
           GoRoute(path: '/account', builder: (_, _) => const AccountScreen()),
         ],
       ),
       GoRoute(
         path: '/destinations/:id',
-        builder: (_, s) => EntityDetailScreen(
-          title: 'Destination',
-          endpoint: '/travel-destinations/${s.pathParameters['id']}',
+        builder: (_, s) => DestinationDetailScreen(
+          id: int.tryParse(s.pathParameters['id'] ?? '') ?? 0,
         ),
       ),
       GoRoute(
@@ -114,9 +104,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/locations/:id',
-        builder: (_, s) => EntityDetailScreen(
-          title: 'Location',
-          endpoint: '/locations/${s.pathParameters['id']}',
+        builder: (_, s) => LocationDetailScreen(
+          id: int.tryParse(s.pathParameters['id'] ?? '') ?? 0,
         ),
       ),
       GoRoute(
@@ -277,13 +266,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/view360',
-        builder: (_, _) => const EntityListScreen(
-          config: EntityConfig(
-            title: '360° views',
-            endpoint: '/view360',
-            keys: ['view360', 'views'],
-            detailBase: '',
+        builder: (_, s) => View360Screen(
+          destinationId: int.tryParse(
+            s.uri.queryParameters['destinationId'] ?? '',
           ),
+          locationId: int.tryParse(s.uri.queryParameters['locationId'] ?? ''),
+          sceneId: int.tryParse(s.uri.queryParameters['sceneId'] ?? ''),
         ),
       ),
     ],
