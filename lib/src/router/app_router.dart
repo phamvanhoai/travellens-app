@@ -8,6 +8,7 @@ import '../features/view360/view360_screen.dart';
 import '../features/locations/location_detail_screen.dart';
 import '../features/travel_feed/travel_feed_screen.dart';
 import '../features/tours/tours_screen.dart';
+import '../features/tours/tour_detail_screen.dart';
 import '../screens/account_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/booking_screen.dart';
@@ -102,10 +103,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/tours/:id',
-        builder: (_, s) => EntityDetailScreen(
-          title: 'Tour details',
-          endpoint: '/tours/${s.pathParameters['id']}',
-          bookTour: true,
+        builder: (_, s) => TourDetailScreen(
+          id: int.tryParse(s.pathParameters['id'] ?? '') ?? 0,
         ),
       ),
       GoRoute(
@@ -233,18 +232,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/payment/checkout',
-        builder: (_, s) => PaymentScreen(
-          bookingId: s.uri.queryParameters['bookingId'] ?? '',
-        ),
+        builder: (_, s) =>
+            PaymentScreen(bookingId: s.uri.queryParameters['bookingId'] ?? ''),
       ),
-      GoRoute(
-        path: '/ai',
-        builder: (_, _) => const AiAssistantScreen(),
-      ),
-      GoRoute(
-        path: '/maps',
-        builder: (_, _) => const TravelMapScreen(),
-      ),
+      GoRoute(path: '/ai', builder: (_, _) => const AiAssistantScreen()),
+      GoRoute(path: '/maps', builder: (_, _) => const TravelMapScreen()),
       GoRoute(
         path: '/view360',
         builder: (_, s) => View360Screen(

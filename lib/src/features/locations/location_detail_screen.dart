@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
@@ -124,6 +125,18 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
     }
   }
 
+  Future<void> shareLocation() async {
+    await Clipboard.setData(
+      ClipboardData(
+        text: 'https://travellens-gamma.vercel.app/locations/${widget.id}',
+      ),
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đã sao chép liên kết địa điểm.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (loading)
@@ -140,13 +153,17 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
     final x = item!;
     final name = _text(x, ['name', 'title'], 'Địa điểm');
     final destination = _destination(x);
-    final destinationId = _destinationId(x);
     final image = AppConfig.assetUrl(_image(x) ?? '');
     final description = _clean('${x['description'] ?? ''}');
     final maps = records(['maps', 'Maps']);
     final scenes = records(['view360', 'view360s', 'View360s']);
     final reviews = records(['reviews', 'Reviews']);
     final gallery = records(['images', 'Images', 'photos', 'gallery']);
+    final featuredImages = <String>{
+      if (image.isNotEmpty) image,
+      ...gallery.map((entry) => AppConfig.assetUrl(_image(entry) ?? '')),
+      ...scenes.map((entry) => AppConfig.assetUrl(_image(entry) ?? '')),
+    }.where((url) => url.isNotEmpty).take(3).toList();
     final rating =
         double.tryParse('${x['average_rating'] ?? x['rating'] ?? 0}') ?? 0;
     final reviewCount =
@@ -157,86 +174,64 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
 
     return Scaffold(
       backgroundColor: Colors.white,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: _HeroCircleButton(
+            icon: Icons.arrow_back_rounded,
+            onTap: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/locations');
+              }
+            },
+          ),
+        ),
+        leadingWidth: 56,
+        actions: [
+          _HeroCircleButton(
+            icon: Icons.ios_share_rounded,
+            onTap: shareLocation,
+          ),
+          const SizedBox(width: 12),
+        ],
+      ),
       body: CustomScrollView(
         slivers: [
-          SliverAppBar(
-            expandedHeight: 300,
-            pinned: false,
-            stretch: true,
-            backgroundColor: Colors.white,
-            foregroundColor: AppColors.ink,
-            leading: Padding(
-              padding: const EdgeInsets.only(left: 12),
-              child: IconButton(
-                onPressed: () {
-                  if (context.canPop()) {
-                    context.pop();
-                  } else {
-                    context.go('/locations');
-                  }
-                },
-                icon: const Icon(Icons.arrow_back_rounded, size: 19),
-                style: IconButton.styleFrom(backgroundColor: Colors.white),
-              ),
-            ),
-            leadingWidth: 58,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 272,
+              child: Stack(
                 fit: StackFit.expand,
                 children: [
                   image.isEmpty
                       ? const ColoredBox(
-                          color: AppColors.dark,
+                          color: AppColors.borderLight,
                           child: Icon(
                             Icons.place_rounded,
-                            color: Colors.white54,
-                            size: 80,
+                            color: AppColors.subtle,
+                            size: 64,
                           ),
                         )
-                      : CachedNetworkImage(imageUrl: image, fit: BoxFit.cover),
-                  const AppHeroOverlay(),
-                  Positioned(
-                    left: 20,
-                    right: 20,
-                    bottom: 24,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        AppBadge(label: 'ĐỊA ĐIỂM'),
-                        const SizedBox(height: 10),
-                        Text(
-                          name,
-                          style: AppTextStyles.h1White.copyWith(fontSize: 26),
+                      : CachedNetworkImage(
+                          imageUrl: image,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, _, _) => const ColoredBox(
+                            color: AppColors.borderLight,
+                            child: Icon(Icons.broken_image_outlined),
+                          ),
                         ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.location_on_rounded,
-                              color: Colors.white60,
-                              size: 15,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              destination,
-                              style: AppTextStyles.bodySmallWhite,
-                            ),
-                            if (rating > 0) ...[
-                              const SizedBox(width: 14),
-                              const Icon(
-                                Icons.star_rounded,
-                                color: AppColors.gold,
-                                size: 15,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${rating.toStringAsFixed(1)} ($reviewCount đánh giá)',
-                                style: AppTextStyles.bodySmallWhite,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ],
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0x22000000), Color(0x33000000)],
+                      ),
                     ),
                   ),
                 ],
@@ -247,11 +242,49 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
           // Quick info
           SliverToBoxAdapter(
             child: Container(
-              color: Colors.white,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              ),
               padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(name, style: AppTextStyles.h3.copyWith(fontSize: 20)),
+                  const SizedBox(height: 5),
+                  Text(destination, style: AppTextStyles.bodySmall),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.star_rounded,
+                        color: AppColors.gold,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        rating > 0 ? rating.toStringAsFixed(1) : 'Mới',
+                        style: AppTextStyles.label.copyWith(fontSize: 11),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '($reviewCount đánh giá)',
+                        style: AppTextStyles.caption.copyWith(fontSize: 10),
+                      ),
+                      const SizedBox(width: 14),
+                      const Icon(
+                        Icons.radio_button_checked_rounded,
+                        size: 13,
+                        color: AppColors.brand,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        'Điểm tham quan',
+                        style: AppTextStyles.caption.copyWith(fontSize: 10),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
                   if (description.isNotEmpty) ...[
                     Text(
                       description,
@@ -267,7 +300,7 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
                   Row(
                     children: [
                       Expanded(
-                        child: AppStatCard(
+                        child: _CompactStat(
                           icon: Icons.map_outlined,
                           value: '${maps.length}',
                           label: 'Bản đồ',
@@ -275,7 +308,7 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: AppStatCard(
+                        child: _CompactStat(
                           icon: Icons.threesixty_rounded,
                           value: '${scenes.length}',
                           label: 'Không gian',
@@ -283,7 +316,7 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: AppStatCard(
+                        child: _CompactStat(
                           icon: Icons.star_outline_rounded,
                           value: '$reviewCount',
                           label: 'Đánh giá',
@@ -291,6 +324,49 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
                       ),
                     ],
                   ),
+                  if (featuredImages.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Ảnh nổi bật',
+                            style: AppTextStyles.h4.copyWith(fontSize: 14),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => tabs.animateTo(1),
+                          child: const Text('Xem tất cả'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 106,
+                      child: Row(
+                        children: [
+                          for (
+                            var index = 0;
+                            index < featuredImages.length;
+                            index++
+                          ) ...[
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: CachedNetworkImage(
+                                  imageUrl: featuredImages[index],
+                                  height: 106,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            if (index < featuredImages.length - 1)
+                              const SizedBox(width: 7),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -313,7 +389,7 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
                   2 => _ScenesTab(scenes: scenes, locationId: widget.id),
                   3 => _MapTab(maps: maps, location: x, name: name),
                   _ => _Reviews(
-                      reviews: reviews,
+                    reviews: reviews,
                     rating: reviewRating,
                     onRating: (v) => setState(() => reviewRating = v),
                     controller: comment,
@@ -326,42 +402,62 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
           ),
         ],
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            border: Border(top: BorderSide(color: AppColors.borderLight)),
-          ),
-          child: Row(
-            children: [
-              if (destinationId > 0) ...[
-                OutlinedButton(
-                  onPressed: () => context.push('/destinations/$destinationId'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(50, 48),
-                    maximumSize: const Size(50, 48),
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: const Icon(Icons.explore_outlined, size: 20),
-                ),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () =>
-                      context.push('/view360?locationId=${widget.id}'),
-                  icon: const Icon(Icons.threesixty_rounded, size: 20),
-                  label: const Text('Trải nghiệm 360°'),
-                ),
+      bottomNavigationBar: AnimatedBuilder(
+        animation: tabs,
+        builder: (context, _) {
+          if (tabs.index != 0 && tabs.index != 2) {
+            return const SizedBox.shrink();
+          }
+          final view360 = tabs.index == 2;
+          return SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 12),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: AppColors.borderLight)),
               ),
-            ],
-          ),
-        ),
+              child: FilledButton.icon(
+                onPressed: view360
+                    ? () => context.push('/view360?locationId=${widget.id}')
+                    : () => tabs.animateTo(3),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  maximumSize: const Size.fromHeight(48),
+                ),
+                icon: Icon(
+                  view360 ? Icons.threesixty_rounded : Icons.map_outlined,
+                  size: 20,
+                ),
+                label: Text(view360 ? 'Mở View360°' : 'Xem bản đồ'),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
+}
+
+class _HeroCircleButton extends StatelessWidget {
+  const _HeroCircleButton({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.white.withValues(alpha: .95),
+    shape: const CircleBorder(),
+    child: InkWell(
+      onTap: onTap,
+      customBorder: const CircleBorder(),
+      child: SizedBox(
+        width: 38,
+        height: 38,
+        child: Icon(icon, size: 19, color: AppColors.ink),
+      ),
+    ),
+  );
 }
 
 class _Header extends SliverPersistentHeaderDelegate {
@@ -459,6 +555,83 @@ class _Header extends SliverPersistentHeaderDelegate {
   bool shouldRebuild(covariant _Header oldDelegate) => false;
 }
 
+class _CompactStat extends StatelessWidget {
+  const _CompactStat({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+  final IconData icon;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+    decoration: BoxDecoration(
+      color: AppColors.accentLight,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      children: [
+        Icon(icon, size: 17, color: AppColors.brand),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: AppTextStyles.label.copyWith(
+            color: AppColors.brand,
+            fontSize: 11,
+          ),
+        ),
+        const SizedBox(height: 1),
+        Text(label, style: AppTextStyles.caption.copyWith(fontSize: 9)),
+      ],
+    ),
+  );
+}
+
+class _CompactInfo extends StatelessWidget {
+  const _CompactInfo({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(11),
+    decoration: BoxDecoration(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: AppColors.borderLight),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, size: 16, color: AppColors.brand),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: AppTextStyles.caption.copyWith(fontSize: 9)),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.label.copyWith(fontSize: 9),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class _Overview extends StatelessWidget {
   const _Overview({required this.item, required this.destination});
   final Map<String, dynamic> item;
@@ -469,19 +642,118 @@ class _Overview extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text('Thông tin địa điểm', style: AppTextStyles.h4),
-      const SizedBox(height: 16),
-      AppInfoRow(
-        icon: Icons.location_on_outlined,
-        label: 'Địa chỉ',
-        value: '${item['address'] ?? destination}',
-      ),
-      const SizedBox(height: 10),
-      AppInfoRow(
-        icon: Icons.my_location_rounded,
-        label: 'Tọa độ',
-        value: '${item['latitude'] ?? '-'}, ${item['longitude'] ?? '-'}',
+      const SizedBox(height: 12),
+      Row(
+        children: [
+          Expanded(
+            child: _CompactInfo(
+              icon: Icons.location_on_outlined,
+              label: 'Địa chỉ',
+              value: '${item['address'] ?? destination}',
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _CompactInfo(
+              icon: Icons.my_location_rounded,
+              label: 'Tọa độ',
+              value: '${item['latitude'] ?? '-'}, ${item['longitude'] ?? '-'}',
+            ),
+          ),
+        ],
       ),
     ],
+  );
+}
+
+class _GalleryTab extends StatelessWidget {
+  const _GalleryTab({
+    required this.images,
+    required this.scenes,
+    required this.heroImage,
+  });
+  final List<Map<String, dynamic>> images;
+  final List<Map<String, dynamic>> scenes;
+  final String heroImage;
+
+  @override
+  Widget build(BuildContext context) {
+    final urls = <String>{
+      if (heroImage.isNotEmpty) heroImage,
+      ...images.map((entry) => AppConfig.assetUrl(_image(entry) ?? '')),
+      ...scenes.map((entry) => AppConfig.assetUrl(_image(entry) ?? '')),
+    }.where((url) => url.isNotEmpty).toList();
+    if (urls.isEmpty) {
+      return const AppEmptyState(
+        icon: Icons.photo_library_outlined,
+        title: 'Chưa có hình ảnh',
+        subtitle: 'Thư viện ảnh của địa điểm đang được cập nhật.',
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Thư viện ảnh', style: AppTextStyles.h4),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 36,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: const [
+              _GalleryChip(label: 'Tất cả', selected: true),
+              _GalleryChip(label: 'Toàn cảnh'),
+              _GalleryChip(label: 'Điểm nổi bật'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final width = (constraints.maxWidth - 8) / 2;
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: List.generate(urls.length, (index) {
+                final height = index % 3 == 0 ? 192.0 : 144.0;
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: CachedNetworkImage(
+                    imageUrl: urls[index],
+                    width: width,
+                    height: height,
+                    fit: BoxFit.cover,
+                  ),
+                );
+              }),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _GalleryChip extends StatelessWidget {
+  const _GalleryChip({required this.label, this.selected = false});
+  final String label;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(right: 8),
+    padding: const EdgeInsets.symmetric(horizontal: 14),
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: selected ? AppColors.brand : AppColors.surface,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: selected ? AppColors.brand : AppColors.border),
+    ),
+    child: Text(
+      label,
+      style: AppTextStyles.caption.copyWith(
+        color: selected ? Colors.white : AppColors.muted,
+      ),
+    ),
   );
 }
 
@@ -503,50 +775,70 @@ class _MapTab extends StatelessWidget {
             '${maps.first['map_url'] ?? maps.first['map_file'] ?? maps.first['image_url'] ?? ''}',
           );
     return Container(
-      height: 380,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.borderLight,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
       ),
-      child: Stack(
-        fit: StackFit.expand,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (image.isNotEmpty)
-            CachedNetworkImage(imageUrl: image, fit: BoxFit.cover)
-          else
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+          SizedBox(
+            height: 176,
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                const Icon(
-                  Icons.map_outlined,
-                  size: 54,
-                  color: AppColors.subtle,
+                if (image.isNotEmpty)
+                  CachedNetworkImage(imageUrl: image, fit: BoxFit.cover)
+                else
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.map_outlined,
+                        size: 36,
+                        color: AppColors.subtle,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Chưa có hình ảnh bản đồ',
+                        style: AppTextStyles.bodySmall,
+                      ),
+                    ],
+                  ),
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      color: AppColors.brand,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.brand.withValues(alpha: .3),
+                          blurRadius: 12,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.location_on_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Text('Chưa có hình ảnh bản đồ', style: AppTextStyles.bodySmall),
               ],
             ),
-          Center(
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.brand,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.brand.withValues(alpha: .4),
-                    blurRadius: 20,
-                    spreadRadius: 4,
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.location_on_rounded,
-                color: Colors.white,
-                size: 26,
-              ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              maps.isEmpty
+                  ? 'Sơ đồ tham quan $name'
+                  : '${maps.first['name'] ?? maps.first['title'] ?? 'Sơ đồ tham quan $name'}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.label.copyWith(fontSize: 11),
             ),
           ),
         ],
@@ -571,66 +863,96 @@ class _Reviews extends StatelessWidget {
   final bool submitting;
   final VoidCallback onSubmit;
 
+  void _openReviewForm(BuildContext context) {
+    var selectedRating = rating;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            18,
+            0,
+            18,
+            MediaQuery.viewInsetsOf(context).bottom + 18,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Chia sẻ trải nghiệm', style: AppTextStyles.h4),
+              const SizedBox(height: 12),
+              Row(
+                children: List.generate(
+                  5,
+                  (index) => IconButton(
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () {
+                      selectedRating = index + 1;
+                      onRating(selectedRating);
+                      setSheetState(() {});
+                    },
+                    icon: Icon(
+                      index < selectedRating
+                          ? Icons.star_rounded
+                          : Icons.star_outline_rounded,
+                      color: AppColors.gold,
+                      size: 25,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: controller,
+                maxLength: 1000,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Bạn cảm nhận thế nào về địa điểm này?',
+                ),
+              ),
+              const SizedBox(height: 10),
+              FilledButton(
+                onPressed: submitting
+                    ? null
+                    : () {
+                        Navigator.pop(sheetContext);
+                        onSubmit();
+                      },
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                child: const Text('Gửi đánh giá'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      // Write a review
-      Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Chia sẻ trải nghiệm', style: AppTextStyles.h4),
-            const SizedBox(height: 14),
-            Row(
-              children: List.generate(
-                5,
-                (i) => GestureDetector(
-                  onTap: () => onRating(i + 1),
-                  child: Icon(
-                    i < rating
-                        ? Icons.star_rounded
-                        : Icons.star_outline_rounded,
-                    color: AppColors.gold,
-                    size: 32,
-                  ),
-                ),
-              ),
+      Row(
+        children: [
+          Expanded(
+            child: Text('Đánh giá từ du khách', style: AppTextStyles.h4),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => _openReviewForm(context),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(0, 38),
+              padding: const EdgeInsets.symmetric(horizontal: 11),
             ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: controller,
-              maxLength: 1000,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                hintText: 'Bạn cảm nhận thế nào về địa điểm này?',
-              ),
-            ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: submitting ? null : onSubmit,
-              child: submitting
-                  ? const SizedBox.square(
-                      dimension: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text('Gửi đánh giá'),
-            ),
-          ],
-        ),
+            icon: const Icon(Icons.edit_outlined, size: 15),
+            label: const Text('Viết đánh giá'),
+          ),
+        ],
       ),
-      const SizedBox(height: 24),
-      Text('Đánh giá từ du khách', style: AppTextStyles.h4),
-      const SizedBox(height: 14),
+      const SizedBox(height: 12),
       if (reviews.isEmpty)
         AppEmptyState(
           icon: Icons.star_outline_rounded,
@@ -647,30 +969,32 @@ class _Reviews extends StatelessWidget {
               'Du khách';
           final reviewRating = double.tryParse('${r['rating'] ?? 0}') ?? 0;
           return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.borderLight),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    AppAvatar(name: '$reviewer', radius: 18),
-                    const SizedBox(width: 10),
+                    AppAvatar(name: '$reviewer', radius: 16),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text('$reviewer', style: AppTextStyles.label),
                     ),
-                    AppRatingRow(rating: reviewRating, size: 14),
+                    AppRatingRow(rating: reviewRating, size: 13),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Text(
                   '${r['comment'] ?? r['content'] ?? 'Không có nội dung đánh giá.'}',
-                  style: AppTextStyles.body.copyWith(color: AppColors.muted),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.muted,
+                  ),
                 ),
               ],
             ),
@@ -781,7 +1105,7 @@ class _Skeleton extends StatelessWidget {
     highlightColor: const Color(0xFFF9FAFB),
     child: ListView(
       children: [
-        Container(height: 400, color: Colors.white),
+        Container(height: 272, color: Colors.white),
         Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -790,7 +1114,7 @@ class _Skeleton extends StatelessWidget {
                 height: 160,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(22),
                 ),
               ),
               const SizedBox(height: 18),
@@ -835,17 +1159,4 @@ String _destination(Map item) {
   final dest = item['destination'] ?? item['travel_destination'];
   if (dest is Map) return '${dest['name'] ?? dest['title'] ?? 'Destination'}';
   return '${item['destination_name'] ?? 'Destination'}';
-}
-
-int _destinationId(Map item) {
-  final dest = item['destination'] ?? item['travel_destination'];
-  if (dest is Map)
-    return int.tryParse(
-          '${dest['travel_destination_id'] ?? dest['destination_id'] ?? dest['id'] ?? 0}',
-        ) ??
-        0;
-  return int.tryParse(
-        '${item['destination_id'] ?? item['travel_destination_id'] ?? 0}',
-      ) ??
-      0;
 }

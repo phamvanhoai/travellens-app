@@ -24,16 +24,24 @@ class DestinationDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _DestinationDetailScreenState
-    extends ConsumerState<DestinationDetailScreen> {
+    extends ConsumerState<DestinationDetailScreen>
+    with SingleTickerProviderStateMixin {
   Map<String, dynamic>? _item;
   String? _error;
   bool _loading = true;
-  int _tabIndex = 0;
+  late final TabController _tabs;
 
   @override
   void initState() {
     super.initState();
+    _tabs = TabController(length: _tabLabels.length, vsync: this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
   }
 
   @override
@@ -41,7 +49,7 @@ class _DestinationDetailScreenState
     super.didUpdateWidget(oldWidget);
     if (oldWidget.id != widget.id) {
       _item = null;
-      _tabIndex = 0;
+      _tabs.index = 0;
       _load();
     }
   }
@@ -217,7 +225,7 @@ class _DestinationDetailScreenState
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
               ),
-              padding: const EdgeInsets.fromLTRB(18, 20, 18, 0),
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -276,27 +284,27 @@ class _DestinationDetailScreenState
                     ),
                   ),
                   const SizedBox(height: 22),
-                  _DestinationTabBar(
-                    index: _tabIndex,
-                    onChanged: (index) => setState(() => _tabIndex = index),
-                  ),
+                  _DestinationTabBar(controller: _tabs),
                   const SizedBox(height: 20),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    child: _DestinationTabContent(
-                      key: ValueKey(_tabIndex),
-                      index: _tabIndex,
-                      destinationId: widget.id,
-                      destinationName: name,
-                      description: description,
-                      item: item,
-                      locations: locations,
-                      tours: tours,
-                      scenes: scenes,
-                      maps: maps,
-                      reviews: reviewItems,
-                      blogs: blogs,
-                      fallbackImage: image,
+                  AnimatedBuilder(
+                    animation: _tabs,
+                    builder: (context, _) => AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      child: _DestinationTabContent(
+                        key: ValueKey(_tabs.index),
+                        index: _tabs.index,
+                        destinationId: widget.id,
+                        destinationName: name,
+                        description: description,
+                        item: item,
+                        locations: locations,
+                        tours: tours,
+                        scenes: scenes,
+                        maps: maps,
+                        reviews: reviewItems,
+                        blogs: blogs,
+                        fallbackImage: image,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -309,7 +317,7 @@ class _DestinationDetailScreenState
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+          padding: const EdgeInsets.fromLTRB(18, 10, 18, 12),
           decoration: BoxDecoration(
             color: Colors.white,
             border: const Border(top: BorderSide(color: AppColors.borderLight)),
@@ -402,54 +410,45 @@ const _tabIcons = [
 ];
 
 class _DestinationTabBar extends StatelessWidget {
-  const _DestinationTabBar({required this.index, required this.onChanged});
-  final int index;
-  final ValueChanged<int> onChanged;
+  const _DestinationTabBar({required this.controller});
+  final TabController controller;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 43,
-    child: ListView.separated(
-      scrollDirection: Axis.horizontal,
-      itemCount: _tabLabels.length,
-      separatorBuilder: (_, _) => const SizedBox(width: 7),
-      itemBuilder: (_, tabIndex) {
-        final selected = tabIndex == index;
-        return Material(
-          color: selected ? AppColors.brand : AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            onTap: () => onChanged(tabIndex),
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: selected ? AppColors.brand : AppColors.border,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    _tabIcons[tabIndex],
-                    size: 15,
-                    color: selected ? Colors.white : AppColors.muted,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    _tabLabels[tabIndex],
-                    style: AppTextStyles.label.copyWith(
-                      fontSize: 11,
-                      color: selected ? Colors.white : AppColors.muted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+  Widget build(BuildContext context) => Container(
+    height: 58,
+    color: Colors.white,
+    padding: const EdgeInsets.symmetric(vertical: 7),
+    child: TabBar(
+      controller: controller,
+      isScrollable: true,
+      tabAlignment: TabAlignment.start,
+      labelColor: Colors.white,
+      unselectedLabelColor: AppColors.muted,
+      indicator: BoxDecoration(
+        color: AppColors.brand,
+        borderRadius: BorderRadius.circular(11),
+      ),
+      indicatorSize: TabBarIndicatorSize.tab,
+      dividerColor: Colors.transparent,
+      labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+      labelStyle: AppTextStyles.label.copyWith(fontSize: 11),
+      unselectedLabelStyle: AppTextStyles.label.copyWith(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+      ),
+      tabs: List.generate(
+        _tabLabels.length,
+        (index) => Tab(
+          height: 44,
+          child: Row(
+            children: [
+              Icon(_tabIcons[index], size: 15),
+              const SizedBox(width: 6),
+              Text(_tabLabels[index]),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     ),
   );
 }
