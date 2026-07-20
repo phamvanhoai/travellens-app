@@ -5,17 +5,19 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../config/app_config.dart';
+import '../core/network/api_client.dart';
 import '../design/app_colors.dart';
 import '../design/app_widgets.dart';
 import '../features/auth/auth_controller.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
-  static const _showUnsupportedFeaturedSections = false;
-  static const List<Map<String, dynamic>> _destinations = [];
-  static const List<Map<String, dynamic>> _tours = [];
-  static const _loading = false;
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   static const _hero =
       'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=90';
   static const _shortcuts = [
@@ -56,8 +58,45 @@ class HomeScreen extends ConsumerWidget {
     ),
   ];
 
+  List<Map<String, dynamic>> _destinations = [];
+  List<Map<String, dynamic>> _tours = [];
+  bool _loading = true;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (mounted) setState(() => _loading = true);
+    try {
+      final results = await Future.wait([
+        ref
+            .read(dioProvider)
+            .get('/destinations', queryParameters: {'page': 1, 'limit': 6}),
+        ref
+            .read(dioProvider)
+            .get('/tours', queryParameters: {'page': 1, 'limit': 6}),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _destinations = unwrapList(results[0].data, ['destinations']);
+        _tours = unwrapList(results[1].data, ['tours']);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _destinations = [];
+        _tours = [];
+      });
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user ?? const <String, dynamic>{};
     final fullName = '${user['name'] ?? 'Traveler'}';
     final name = fullName.trim().isEmpty
@@ -70,7 +109,7 @@ class HomeScreen extends ConsumerWidget {
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
-          onRefresh: () async {},
+          onRefresh: _load,
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
@@ -85,10 +124,10 @@ class HomeScreen extends ConsumerWidget {
                     const _HeroBanner(image: _hero),
                     const SizedBox(height: 12),
                     const _ShortcutRow(items: _shortcuts),
-                    if (_showUnsupportedFeaturedSections) ...[
+                    ...[
                       const SizedBox(height: 17),
                       const _SectionTitle(
-                        title: 'Gợi ý dành cho bạn',
+                        title: 'Điểm đến',
                         route: '/destinations',
                       ),
                       const SizedBox(height: 9),
@@ -116,7 +155,7 @@ class HomeScreen extends ConsumerWidget {
                           ),
                         )
                       else if (_destinations.isEmpty)
-                        const _CompactEmpty(label: 'Chưa có điểm đến nổi bật')
+                        const _CompactEmpty(label: 'Chưa có điểm đến')
                       else
                         SizedBox(
                           height: 150,
@@ -131,7 +170,7 @@ class HomeScreen extends ConsumerWidget {
                         ),
                       const SizedBox(height: 18),
                       const _SectionTitle(
-                        title: 'Tour phổ biến',
+                        title: 'Tour du lịch',
                         route: '/tours',
                       ),
                       const SizedBox(height: 9),
@@ -155,7 +194,7 @@ class HomeScreen extends ConsumerWidget {
                           ),
                         )
                       else if (_tours.isEmpty)
-                        const _CompactEmpty(label: 'Chưa có tour nổi bật')
+                        const _CompactEmpty(label: 'Chưa có tour')
                       else
                         SizedBox(
                           height: 112,
