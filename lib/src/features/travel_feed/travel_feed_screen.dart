@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -134,6 +135,8 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: .5,
+      toolbarHeight: 58,
+      systemOverlayStyle: SystemUiOverlayStyle.light,
       flexibleSpace: const DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -147,14 +150,14 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
       title: const Row(
         children: [
           _FeedLogo(),
-          SizedBox(width: 11),
+          SizedBox(width: 9),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'TravelLens',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.w900,
                   letterSpacing: -.4,
                   color: Colors.white,
@@ -163,7 +166,7 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
               Text(
                 'Discover moments',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   color: Color(0xCCFFFFFF),
                   fontWeight: FontWeight.w500,
                 ),
@@ -221,48 +224,67 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
         slivers: [
           SliverToBoxAdapter(
             child: Container(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 24),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
               decoration: const BoxDecoration(
-                gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF0F766E), Color(0xFF0891B2)]),
-                borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF0F766E), Color(0xFF0891B2)],
+                ),
+                borderRadius: BorderRadius.vertical(
+                  bottom: Radius.circular(20),
+                ),
               ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('See the world through\nother travelers’ eyes.', style: TextStyle(color: Colors.white, fontSize: 25, height: 1.12, fontWeight: FontWeight.w900, letterSpacing: -.7)),
-                const SizedBox(height: 6),
-                const Text('Real places. Real stories. Your next inspiration.', style: TextStyle(color: Color(0xCCFFFFFF), fontSize: 12)),
-                const SizedBox(height: 17),
-                SearchBar(
-                controller: search,
-                backgroundColor: const WidgetStatePropertyAll(
-                  Colors.white,
-                ),
-                elevation: const WidgetStatePropertyAll(0),
-                side: const WidgetStatePropertyAll(
-                  BorderSide(color: Color(0xFFE2E8F0)),
-                ),
-                shape: WidgetStatePropertyAll(
-                  RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                hintText: 'Search posts, places, experiences…',
-                leading: const Icon(
-                  Icons.search_rounded,
-                  color: Color(0xFF64748B),
-                ),
-                onSubmitted: (_) => load(),
-                trailing: [
-                  if (search.text.isNotEmpty)
-                    IconButton(
-                      onPressed: () {
-                        search.clear();
-                        load();
-                      },
-                      icon: const Icon(Icons.close),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'See the world through\nother travelers’ eyes.',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      height: 1.1,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -.7,
                     ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Real places. Real stories. Your next inspiration.',
+                    style: TextStyle(color: Color(0xCCFFFFFF), fontSize: 12),
+                  ),
+                  const SizedBox(height: 13),
+                  SearchBar(
+                    controller: search,
+                    backgroundColor: const WidgetStatePropertyAll(Colors.white),
+                    elevation: const WidgetStatePropertyAll(0),
+                    side: const WidgetStatePropertyAll(
+                      BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    shape: WidgetStatePropertyAll(
+                      RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    hintText: 'Search posts, places, experiences…',
+                    leading: const Icon(
+                      Icons.search_rounded,
+                      color: Color(0xFF64748B),
+                    ),
+                    onSubmitted: (_) => load(),
+                    trailing: [
+                      if (search.text.isNotEmpty)
+                        IconButton(
+                          onPressed: () {
+                            search.clear();
+                            load();
+                          },
+                          icon: const Icon(Icons.close),
+                        ),
+                    ],
+                  ),
                 ],
-                ),
-              ]),
+              ),
             ),
           ),
           SliverToBoxAdapter(
@@ -404,10 +426,10 @@ class _FeedLogo extends StatelessWidget {
   const _FeedLogo();
   @override
   Widget build(BuildContext context) => Container(
-    width: 40,
-    height: 40,
+    width: 34,
+    height: 34,
     decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(13),
+      borderRadius: BorderRadius.circular(11),
       gradient: const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
@@ -424,7 +446,7 @@ class _FeedLogo extends StatelessWidget {
     child: const Icon(
       Icons.travel_explore_rounded,
       color: Colors.white,
-      size: 23,
+      size: 20,
     ),
   );
 }
@@ -442,19 +464,11 @@ class _Stories extends StatelessWidget {
     }
     final groups = grouped.values.toList();
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-      decoration: BoxDecoration(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE8EDF3)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A0F172A),
-            blurRadius: 18,
-            offset: Offset(0, 5),
-          ),
-        ],
+        border: Border(bottom: BorderSide(color: Color(0xFFE8EDF3))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -469,7 +483,7 @@ class _Stories extends StatelessWidget {
                       'Travel Stories',
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
-                        fontSize: 18,
+                        fontSize: 16,
                         letterSpacing: -.3,
                       ),
                     ),
@@ -486,8 +500,10 @@ class _Stories extends StatelessWidget {
                   style: TextButton.styleFrom(
                     backgroundColor: const Color(0xFFECFDF5),
                     foregroundColor: const Color(0xFF0F766E),
+                    minimumSize: const Size(0, 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 11),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(30),
                     ),
                   ),
                   icon: const Icon(Icons.add_rounded, size: 18),
@@ -498,9 +514,9 @@ class _Stories extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 9),
           SizedBox(
-            height: 84,
+            height: 72,
             child: groups.isEmpty
                 ? const Align(
                     alignment: Alignment.centerLeft,
@@ -521,13 +537,13 @@ class _Stories extends StatelessWidget {
                       return GestureDetector(
                         onTap: () => onTap(originalIndex),
                         child: SizedBox(
-                          width: 67,
+                          width: 60,
                           child: Column(
                             children: [
                               Container(
-                                width: 58,
-                                height: 58,
-                                padding: const EdgeInsets.all(2.5),
+                                width: 48,
+                                height: 48,
+                                padding: const EdgeInsets.all(2),
                                 decoration: const BoxDecoration(
                                   shape: BoxShape.circle,
                                   gradient: LinearGradient(
@@ -960,9 +976,47 @@ class _ComposerState extends ConsumerState<_Composer> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Create post',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(15),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF14B8A6), Color(0xFF0891B2)],
+                  ),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Share a moment',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -.5,
+                      ),
+                    ),
+                    Text(
+                      'Inspire travelers with your journey',
+                      style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: saving ? null : () => Navigator.pop(context),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           TextField(

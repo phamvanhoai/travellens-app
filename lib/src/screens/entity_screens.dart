@@ -49,18 +49,26 @@ class _EntityListScreenState extends ConsumerState<EntityListScreen> {
     return unwrapList(response.data, widget.config.keys);
   }
 
-  void reload() => setState(() => future = load());
+  void reload() => setState(() {
+    future = load();
+  });
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: Text(widget.config.title)),
     body: Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
           child: SearchBar(
             controller: search,
             hintText: 'Search ${widget.config.title.toLowerCase()}',
-            leading: const Icon(Icons.search),
+            backgroundColor: const WidgetStatePropertyAll(Color(0xFFF1F5F9)),
+            elevation: const WidgetStatePropertyAll(0),
+            side: const WidgetStatePropertyAll(
+              BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            leading: const Icon(Icons.search_rounded, color: Color(0xFF64748B)),
             onSubmitted: (_) => reload(),
             trailing: [
               if (search.text.isNotEmpty)
@@ -81,7 +89,7 @@ class _EntityListScreenState extends ConsumerState<EntityListScreen> {
               future: future,
               builder: (context, snapshot) {
                 if (snapshot.connectionState != ConnectionState.done)
-                  return const Center(child: CircularProgressIndicator());
+                  return const _ListLoading();
                 if (snapshot.hasError)
                   return _ErrorState(
                     error: apiError(snapshot.error!),
@@ -92,12 +100,22 @@ class _EntityListScreenState extends ConsumerState<EntityListScreen> {
                   return ListView(
                     children: const [
                       SizedBox(height: 160),
-                      Icon(Icons.inbox_outlined, size: 52),
-                      Center(child: Text('No items found.')),
+                      Icon(
+                        Icons.explore_off_rounded,
+                        size: 52,
+                        color: Color(0xFF94A3B8),
+                      ),
+                      SizedBox(height: 12),
+                      Center(
+                        child: Text(
+                          'Nothing here yet.',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
                     ],
                   );
                 return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
                   itemCount: items.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder: (_, i) => EntityCard(
@@ -141,8 +159,8 @@ class EntityCard extends StatelessWidget {
         child: Row(
           children: [
             SizedBox(
-              width: 116,
-              height: 112,
+              width: 122,
+              height: 124,
               child: image.isEmpty
                   ? const ColoredBox(
                       color: Color(0xFFE2E8F0),
@@ -167,7 +185,8 @@ class EntityCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -.2,
                       ),
                     ),
                     const SizedBox(height: 7),
@@ -194,7 +213,11 @@ class EntityCard extends StatelessWidget {
             ),
             const Padding(
               padding: EdgeInsets.only(right: 8),
-              child: Icon(Icons.chevron_right),
+              child: Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: Color(0xFF94A3B8),
+              ),
             ),
           ],
         ),
@@ -299,6 +322,71 @@ class _ErrorState extends StatelessWidget {
           Text(error, textAlign: TextAlign.center),
           const SizedBox(height: 12),
           OutlinedButton(onPressed: retry, child: const Text('Try again')),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ListLoading extends StatelessWidget {
+  const _ListLoading();
+  @override
+  Widget build(BuildContext context) => ListView.separated(
+    padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
+    itemCount: 5,
+    separatorBuilder: (_, _) => const SizedBox(height: 12),
+    itemBuilder: (_, _) => Container(
+      height: 124,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE8EDF3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 122,
+            decoration: const BoxDecoration(
+              color: Color(0xFFE8EDF3),
+              borderRadius: BorderRadius.horizontal(left: Radius.circular(21)),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    height: 15,
+                    width: 150,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8EDF3),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  const SizedBox(height: 11),
+                  Container(
+                    height: 11,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Container(
+                    height: 11,
+                    width: 100,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     ),
