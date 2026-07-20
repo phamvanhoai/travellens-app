@@ -7,6 +7,7 @@ import '../features/destinations/destination_detail_screen.dart';
 import '../features/view360/view360_screen.dart';
 import '../features/locations/location_detail_screen.dart';
 import '../features/travel_feed/travel_feed_screen.dart';
+import '../features/tours/tours_screen.dart';
 import '../screens/account_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/booking_screen.dart';
@@ -67,17 +68,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/destinations',
             builder: (_, _) => const DestinationsScreen(),
           ),
-          GoRoute(
-            path: '/tours',
-            builder: (_, _) => const EntityListScreen(
-              config: EntityConfig(
-                title: 'Tours',
-                endpoint: '/tours',
-                keys: ['tours'],
-                detailBase: '/tours',
-              ),
-            ),
-          ),
+          GoRoute(path: '/tours', builder: (_, _) => const ToursScreen()),
           GoRoute(
             path: '/travel-feed',
             builder: (_, _) => const TravelFeedScreen(),

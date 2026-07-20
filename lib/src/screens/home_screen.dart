@@ -1,338 +1,380 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../design/app_colors.dart';
+import '../design/app_text_styles.dart';
+import '../design/app_widgets.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   static const features = <_Feature>[
     _Feature(
-      'Destinations',
-      'Find your next place',
+      'Explore Destinations',
+      'Discover stunning places worldwide',
       Icons.explore_rounded,
       '/destinations',
-      Color(0xFF0F766E),
-      Color(0xFFCCFBF1),
+      AppColors.brand,
+      Color(0xFFECFDF8),
     ),
     _Feature(
-      'Curated tours',
-      'Travel with confidence',
+      'Curated Tours',
+      'Expert-led travel experiences',
       Icons.luggage_rounded,
       '/tours',
       Color(0xFF7C3AED),
-      Color(0xFFEDE9FE),
+      Color(0xFFF5F3FF),
     ),
     _Feature(
-      'Travel feed',
-      'Stories from travelers',
-      Icons.auto_awesome_mosaic_rounded,
+      'Travel Feed',
+      'Stories from real travelers',
+      Icons.dynamic_feed_rounded,
       '/travel-feed',
       Color(0xFFDB2777),
-      Color(0xFFFCE7F3),
+      Color(0xFFFDF2F8),
     ),
     _Feature(
       'View in 360°',
-      'Step inside the scene',
+      'Step inside any scene',
       Icons.threesixty_rounded,
       '/view360',
       Color(0xFF0284C7),
-      Color(0xFFE0F2FE),
+      Color(0xFFEFF6FF),
     ),
     _Feature(
-      'AI trip planner',
-      'Built around your style',
+      'AI Trip Planner',
+      'Smart recommendations for you',
       Icons.auto_awesome_rounded,
       '/ai',
       Color(0xFFEA580C),
-      Color(0xFFFFEDD5),
+      Color(0xFFFFF7ED),
     ),
     _Feature(
-      'Travel map',
-      'Explore places nearby',
+      'Interactive Map',
+      'Find places near you',
       Icons.map_rounded,
       '/maps',
       Color(0xFF16A34A),
-      Color(0xFFDCFCE7),
+      Color(0xFFF0FDF4),
     ),
   ];
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    body: CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          pinned: true,
-          expandedHeight: 112,
-          backgroundColor: const Color(0xFF0F766E),
-          foregroundColor: Colors.white,
-          flexibleSpace: FlexibleSpaceBar(
-            expandedTitleScale: 1.25,
-            titlePadding: const EdgeInsets.fromLTRB(18, 0, 18, 17),
-            title: const Row(
-              children: [
-                Icon(Icons.travel_explore_rounded, size: 23),
-                SizedBox(width: 8),
-                Text(
-                  'TravelLens',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -.5,
-                  ),
-                ),
-              ],
-            ),
-            background: const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF115E59), Color(0xFF0891B2)],
-                ),
-              ),
-            ),
-          ),
-          actions: [
-            IconButton(
-              onPressed: () => context.push('/wishlist'),
-              icon: const Icon(Icons.favorite_border_rounded),
-            ),
-            const SizedBox(width: 8),
-          ],
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 18, 16, 112),
-          sliver: SliverList.list(
-            children: [
-              _Hero(onExplore: () => context.go('/destinations')),
-              const SizedBox(height: 28),
-              const _SectionTitle(
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      body: CustomScrollView(
+        slivers: [
+          _HomeAppBar(),
+          SliverToBoxAdapter(child: _HeroBanner()),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+            sliver: SliverToBoxAdapter(
+              child: AppSectionHeader(
                 title: 'Shape your journey',
-                subtitle: 'Everything you need, thoughtfully organized',
+                subtitle: 'Everything you need, beautifully organized',
               ),
-              const SizedBox(height: 14),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: features.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 1.12,
-                ),
-                itemBuilder: (_, index) =>
-                    _FeatureCard(feature: features[index]),
-              ),
-              const SizedBox(height: 28),
-              InkWell(
-                onTap: () => context.push('/group-trips'),
-                borderRadius: BorderRadius.circular(24),
-                child: Ink(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0F172A),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: const Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Better trips, together.',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -.4,
-                              ),
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              'Plan, invite and travel with your favorite people.',
-                              style: TextStyle(
-                                color: Color(0xFFCBD5E1),
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor: Color(0xFF14B8A6),
-                        child: Icon(
-                          Icons.arrow_forward_rounded,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            sliver: SliverGrid.builder(
+              itemCount: features.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 14,
+                crossAxisSpacing: 14,
+                childAspectRatio: 1.1,
+              ),
+              itemBuilder: (_, i) => _FeatureCard(feature: features[i]),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+            sliver: SliverToBoxAdapter(child: _GroupTripsBanner()),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _Hero extends StatelessWidget {
-  const _Hero({required this.onExplore});
-  final VoidCallback onExplore;
+class _HomeAppBar extends StatelessWidget {
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(24),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(28),
-      gradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Color(0xFF0F766E), Color(0xFF06B6D4)],
-      ),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x3314B8A6),
-          blurRadius: 28,
-          offset: Offset(0, 12),
-        ),
-      ],
-    ),
-    child: Stack(
-      children: [
-        Positioned(
-          right: -28,
-          top: -34,
-          child: Container(
-            width: 130,
-            height: 130,
+  Widget build(BuildContext context) {
+    return SliverAppBar(
+      pinned: true,
+      expandedHeight: 0,
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0.5,
+      titleSpacing: 20,
+      title: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(11),
+              gradient: const LinearGradient(
+                colors: AppColors.brandGradientLight,
+              ),
+            ),
+            child: const Icon(
+              Icons.travel_explore_rounded,
+              color: Colors.white,
+              size: 18,
             ),
           ),
+          const SizedBox(width: 10),
+          Text(
+            'TravelLens',
+            style: AppTextStyles.h3.copyWith(letterSpacing: -0.5),
+          ),
+        ],
+      ),
+      actions: [
+        IconButton(
+          onPressed: () => context.push('/wishlist'),
+          icon: const Icon(Icons.favorite_border_rounded),
+          style: IconButton.styleFrom(
+            foregroundColor: AppColors.ink,
+          ),
         ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .16),
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: const Text(
-                'YOUR WORLD, REIMAGINED',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.1,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Go beyond\nthe ordinary.',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 34,
-                height: 1.02,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -1.2,
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Curated places, immersive views and authentic stories—all in one journey.',
-              style: TextStyle(color: Color(0xFFE6FFFB), height: 1.45),
-            ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: onExplore,
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF0F766E),
-                minimumSize: const Size(0, 48),
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-              ),
-              icon: const Icon(Icons.explore_rounded),
-              label: const Text('Start exploring'),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+}
+
+class _HeroBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Builder(
+      builder: (context) => Container(
+        margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+        height: 210,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF065F52), Color(0xFF0A7E6E), Color(0xFF06B6D4)],
+            stops: [0, 0.5, 1],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.brand.withValues(alpha: .30),
+              blurRadius: 32,
+              offset: const Offset(0, 14),
             ),
           ],
         ),
-      ],
-    ),
-  );
+        child: Stack(
+          children: [
+            // Decorative circles
+            Positioned(
+              right: -30,
+              top: -40,
+              child: Container(
+                width: 160,
+                height: 160,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: .06),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 40,
+              bottom: -60,
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: .04),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(26),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .18),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'YOUR WORLD, REIMAGINED',
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: Colors.white,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Go beyond\nthe ordinary.',
+                    style: AppTextStyles.h1White.copyWith(fontSize: 30),
+                  ),
+                  const Spacer(),
+                  FilledButton(
+                    onPressed: () => context.go('/destinations'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.brand,
+                      minimumSize: const Size(0, 44),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      textStyle: GoogleFonts.outfit(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.explore_rounded, size: 18),
+                        SizedBox(width: 7),
+                        Text('Start exploring'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _FeatureCard extends StatelessWidget {
   const _FeatureCard({required this.feature});
   final _Feature feature;
+
   @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.white,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(22),
-      side: const BorderSide(color: Color(0xFFE8EDF3)),
-    ),
-    clipBehavior: Clip.antiAlias,
-    child: InkWell(
-      onTap: () => context.push(feature.path),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.push(feature.path),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: feature.soft,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(feature.icon, color: feature.color, size: 24),
+              ),
+              const Spacer(),
+              Text(
+                feature.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.h4.copyWith(fontSize: 14),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                feature.subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.caption,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GroupTripsBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push('/group-trips'),
+      child: Container(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          color: AppColors.dark,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.dark.withValues(alpha: .2),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
           children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.brandLight.withValues(alpha: .2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'NEW',
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: AppColors.brandLight,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Better trips,\ntogether.',
+                    style: AppTextStyles.h2White.copyWith(fontSize: 22),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Plan, invite and travel with your favorite people.',
+                    style: AppTextStyles.bodySmallWhite,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
             Container(
-              width: 44,
-              height: 44,
+              width: 50,
+              height: 50,
               decoration: BoxDecoration(
-                color: feature.soft,
-                borderRadius: BorderRadius.circular(14),
+                color: AppColors.brandLight,
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Icon(feature.icon, color: feature.color, size: 23),
-            ),
-            const Spacer(),
-            Text(
-              feature.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -.2,
+              child: const Icon(
+                Icons.arrow_forward_rounded,
+                color: Colors.white,
+                size: 22,
               ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              feature.subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
             ),
           ],
         ),
       ),
-    ),
-  );
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, required this.subtitle});
-  final String title, subtitle;
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(title, style: Theme.of(context).textTheme.titleLarge),
-      const SizedBox(height: 3),
-      Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-    ],
-  );
+    );
+  }
 }
 
 class _Feature {

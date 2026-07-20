@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../config/app_config.dart';
 import '../core/network/api_client.dart';
+import '../design/app_colors.dart';
+import '../design/app_text_styles.dart';
+import '../design/app_widgets.dart';
 
 class EntityConfig {
   const EntityConfig({
@@ -52,9 +55,14 @@ class _EntityListScreenState extends ConsumerState<EntityListScreen> {
   void reload() => setState(() {
     future = load();
   });
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.config.title)),
+    backgroundColor: AppColors.surface,
+    appBar: AppBar(
+      title: Text(widget.config.title),
+      backgroundColor: Colors.white,
+    ),
     body: Column(
       children: [
         Container(
@@ -62,13 +70,14 @@ class _EntityListScreenState extends ConsumerState<EntityListScreen> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
           child: SearchBar(
             controller: search,
-            hintText: 'Search ${widget.config.title.toLowerCase()}',
-            backgroundColor: const WidgetStatePropertyAll(Color(0xFFF1F5F9)),
+            hintText: 'Search ${widget.config.title.toLowerCase()}…',
+            backgroundColor: WidgetStatePropertyAll(AppColors.surface),
             elevation: const WidgetStatePropertyAll(0),
-            side: const WidgetStatePropertyAll(
-              BorderSide(color: Color(0xFFE2E8F0)),
+            side: WidgetStatePropertyAll(BorderSide(color: AppColors.border)),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
-            leading: const Icon(Icons.search_rounded, color: Color(0xFF64748B)),
+            leading: const Icon(Icons.search_rounded, color: AppColors.muted, size: 20),
             onSubmitted: (_) => reload(),
             trailing: [
               if (search.text.isNotEmpty)
@@ -77,45 +86,34 @@ class _EntityListScreenState extends ConsumerState<EntityListScreen> {
                     search.clear();
                     reload();
                   },
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(Icons.close_rounded, size: 18),
                 ),
             ],
           ),
         ),
         Expanded(
           child: RefreshIndicator(
+            color: AppColors.brand,
             onRefresh: () async => reload(),
             child: FutureBuilder<List<Map<String, dynamic>>>(
               future: future,
               builder: (context, snapshot) {
                 if (snapshot.connectionState != ConnectionState.done)
-                  return const _ListLoading();
+                  return _ListLoading();
                 if (snapshot.hasError)
-                  return _ErrorState(
+                  return AppErrorState(
                     error: apiError(snapshot.error!),
-                    retry: reload,
+                    onRetry: reload,
                   );
                 final items = snapshot.data ?? [];
                 if (items.isEmpty)
-                  return ListView(
-                    children: const [
-                      SizedBox(height: 160),
-                      Icon(
-                        Icons.explore_off_rounded,
-                        size: 52,
-                        color: Color(0xFF94A3B8),
-                      ),
-                      SizedBox(height: 12),
-                      Center(
-                        child: Text(
-                          'Nothing here yet.',
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                    ],
+                  return AppEmptyState(
+                    icon: Icons.explore_off_rounded,
+                    title: 'Nothing here yet',
+                    subtitle: 'Try a different search or check back later.',
                   );
                 return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
                   itemCount: items.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder: (_, i) => EntityCard(
@@ -145,6 +143,7 @@ class EntityCard extends StatelessWidget {
   const EntityCard({super.key, required this.item, this.onTap});
   final Map<String, dynamic> item;
   final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     final image = AppConfig.assetUrl(_image(item));
@@ -152,25 +151,26 @@ class EntityCard extends StatelessWidget {
     final subtitle =
         '${item['short_description'] ?? item['description'] ?? item['destination_name'] ?? item['status'] ?? ''}'
             .replaceAll(RegExp('<[^>]*>'), ' ');
-    return Card(
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Row(
           children: [
             SizedBox(
-              width: 122,
-              height: 124,
+              width: 110,
+              height: 110,
               child: image.isEmpty
-                  ? const ColoredBox(
-                      color: Color(0xFFE2E8F0),
-                      child: Icon(Icons.image_outlined),
+                  ? ColoredBox(
+                      color: AppColors.borderLight,
+                      child: const Icon(Icons.image_outlined, color: AppColors.subtle),
                     )
                   : CachedNetworkImage(
                       imageUrl: image,
                       fit: BoxFit.cover,
-                      errorWidget: (_, _, _) =>
-                          const Icon(Icons.broken_image_outlined),
+                      errorWidget: (_, _, _) => const Icon(Icons.broken_image_outlined),
                     ),
             ),
             Expanded(
@@ -183,40 +183,41 @@ class EntityCard extends StatelessWidget {
                       title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -.2,
-                      ),
+                      style: AppTextStyles.h4,
                     ),
-                    const SizedBox(height: 7),
+                    const SizedBox(height: 5),
                     Text(
                       subtitle,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Color(0xFF64748B)),
+                      style: AppTextStyles.bodySmall,
                     ),
                     if (item['price'] != null || item['total_amount'] != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
                           '${item['price'] ?? item['total_amount']} ${item['currency'] ?? 'VND'}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0E7490),
-                          ),
+                          style: AppTextStyles.label.copyWith(color: AppColors.brand),
                         ),
                       ),
                   ],
                 ),
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.only(right: 8),
-              child: Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 14,
-                color: Color(0xFF94A3B8),
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 13,
+                  color: AppColors.muted,
+                ),
               ),
             ),
           ],
@@ -235,18 +236,20 @@ class EntityDetailScreen extends ConsumerWidget {
   });
   final String title, endpoint;
   final bool bookTour;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) => Scaffold(
-    appBar: AppBar(title: Text(title)),
+    backgroundColor: AppColors.surface,
+    appBar: AppBar(title: Text(title), backgroundColor: Colors.white),
     body: FutureBuilder<Response>(
       future: ref.read(dioProvider).get(endpoint),
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done)
           return const Center(child: CircularProgressIndicator());
         if (snapshot.hasError)
-          return _ErrorState(
+          return AppErrorState(
             error: apiError(snapshot.error!),
-            retry: () => context.pushReplacement(
+            onRetry: () => context.pushReplacement(
               GoRouterState.of(context).uri.toString(),
             ),
           );
@@ -256,7 +259,7 @@ class EntityDetailScreen extends ConsumerWidget {
         final item = Map<String, dynamic>.from(data as Map);
         final image = AppConfig.assetUrl(_image(item));
         return ListView(
-          padding: const EdgeInsets.only(bottom: 32),
+          padding: const EdgeInsets.only(bottom: 40),
           children: [
             if (image.isNotEmpty)
               AspectRatio(
@@ -270,32 +273,30 @@ class EntityDetailScreen extends ConsumerWidget {
                 children: [
                   Text(
                     _title(item),
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
-                  const SizedBox(height: 12),
-                  if (item['price'] != null)
+                  if (item['price'] != null) ...[
+                    const SizedBox(height: 10),
                     Text(
                       '${item['price']} ${item['currency'] ?? 'VND'}',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: const Color(0xFF0E7490),
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: AppTextStyles.price,
                     ),
+                  ],
                   const SizedBox(height: 16),
                   Text(
                     '${item['description'] ?? item['short_description'] ?? 'Details are not available.'}'
                         .replaceAll(RegExp('<[^>]*>'), ' '),
+                    style: AppTextStyles.body,
                   ),
-                  const SizedBox(height: 20),
-                  if (bookTour)
+                  if (bookTour) ...[
+                    const SizedBox(height: 24),
                     FilledButton.icon(
                       onPressed: () =>
                           context.push('/booking?tourId=${_id(item)}'),
-                      icon: const Icon(Icons.calendar_month),
+                      icon: const Icon(Icons.calendar_month_rounded),
                       label: const Text('Book this tour'),
                     ),
+                  ],
                 ],
               ),
             ),
@@ -306,49 +307,28 @@ class EntityDetailScreen extends ConsumerWidget {
   );
 }
 
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.error, required this.retry});
-  final String error;
-  final VoidCallback retry;
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.cloud_off, size: 48),
-          const SizedBox(height: 12),
-          Text(error, textAlign: TextAlign.center),
-          const SizedBox(height: 12),
-          OutlinedButton(onPressed: retry, child: const Text('Try again')),
-        ],
-      ),
-    ),
-  );
-}
+// ─── Loading skeleton ─────────────────────────────────────────────────────────
 
 class _ListLoading extends StatelessWidget {
-  const _ListLoading();
   @override
   Widget build(BuildContext context) => ListView.separated(
-    padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
+    padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
     itemCount: 5,
     separatorBuilder: (_, _) => const SizedBox(height: 12),
     itemBuilder: (_, _) => Container(
-      height: 124,
+      height: 110,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE8EDF3)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
           Container(
-            width: 122,
-            decoration: const BoxDecoration(
-              color: Color(0xFFE8EDF3),
-              borderRadius: BorderRadius.horizontal(left: Radius.circular(21)),
+            width: 110,
+            decoration: BoxDecoration(
+              color: AppColors.borderLight,
+              borderRadius: const BorderRadius.horizontal(left: Radius.circular(17)),
             ),
           ),
           Expanded(
@@ -358,31 +338,11 @@ class _ListLoading extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    height: 15,
-                    width: 150,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE8EDF3),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  const SizedBox(height: 11),
-                  Container(
-                    height: 11,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
+                  AppShimmerBox(width: 160, height: 14),
+                  const SizedBox(height: 10),
+                  AppShimmerBox(width: double.infinity, height: 10),
                   const SizedBox(height: 7),
-                  Container(
-                    height: 11,
-                    width: 100,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
+                  AppShimmerBox(width: 100, height: 10),
                 ],
               ),
             ),
@@ -392,6 +352,8 @@ class _ListLoading extends StatelessWidget {
     ),
   );
 }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 String _id(Map item) =>
     '${item['tour_id'] ?? item['travel_destination_id'] ?? item['destination_id'] ?? item['location_id'] ?? item['post_id'] ?? item['group_trip_id'] ?? item['booking_id'] ?? item['payment_id'] ?? item['review_id'] ?? item['id'] ?? 0}';

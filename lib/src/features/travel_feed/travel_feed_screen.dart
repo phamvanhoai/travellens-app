@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -10,9 +11,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:shadcn_ui/shadcn_ui.dart' hide DateFormat;
+
 import '../../config/app_config.dart';
 import '../../core/network/api_client.dart';
 import '../auth/auth_controller.dart';
+import '../../design/app_colors.dart';
+import '../../design/app_text_styles.dart';
+import '../../design/app_widgets.dart';
 
 class TravelFeedScreen extends ConsumerStatefulWidget {
   const TravelFeedScreen({super.key});
@@ -27,6 +32,7 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
   String? error;
   int page = 1, totalPages = 1;
   String sort = 'newest';
+
   @override
   void initState() {
     super.initState();
@@ -110,8 +116,7 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
     final id = _postId(post), liked = post['is_liked'] == true;
     setState(() {
       post['is_liked'] = !liked;
-      post['like_count'] =
-          ((post['like_count'] ?? 0) as num).toInt() + (liked ? -1 : 1);
+      post['like_count'] = ((post['like_count'] ?? 0) as num).toInt() + (liked ? -1 : 1);
     });
     try {
       if (liked)
@@ -121,268 +126,114 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
     } catch (e) {
       setState(() {
         post['is_liked'] = liked;
-        post['like_count'] =
-            ((post['like_count'] ?? 0) as num).toInt() + (liked ? 1 : -1);
+        post['like_count'] = ((post['like_count'] ?? 0) as num).toInt() + (liked ? 1 : -1);
       });
     }
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF6F8FB),
-    appBar: AppBar(
-      backgroundColor: Colors.transparent,
-      foregroundColor: Colors.white,
-      surfaceTintColor: Colors.transparent,
-      elevation: 0,
-      scrolledUnderElevation: .5,
-      toolbarHeight: 58,
-      systemOverlayStyle: SystemUiOverlayStyle.light,
-      flexibleSpace: const DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF0F766E), Color(0xFF0891B2)],
-          ),
-        ),
-      ),
-      titleSpacing: 16,
-      title: const Row(
-        children: [
-          _FeedLogo(),
-          SizedBox(width: 9),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'TravelLens',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -.4,
-                  color: Colors.white,
-                ),
+  Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
+    value: SystemUiOverlayStyle.light,
+    child: Scaffold(
+      backgroundColor: AppColors.surface,
+      floatingActionButton: ref.watch(authProvider).authenticated
+          ? FloatingActionButton.extended(
+              onPressed: openComposer,
+              icon: const Icon(Icons.add_rounded),
+              label: Text(
+                'Share moment',
+                style: AppTextStyles.button.copyWith(color: Colors.white),
               ),
-              Text(
-                'Discover moments',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Color(0xCCFFFFFF),
-                  fontWeight: FontWeight.w500,
-                ),
+            )
+          : null,
+      body: RefreshIndicator(
+        color: AppColors.brand,
+        onRefresh: () async => Future.wait([load(), loadStories()]),
+        child: CustomScrollView(
+          slivers: [
+            // App bar + header
+            SliverToBoxAdapter(child: _FeedHeader(search: search, onSearch: load, sort: sort, onSortChanged: (v) { sort = v; load(); })),
+
+            // Stories
+            SliverToBoxAdapter(
+              child: _StoriesSection(
+                stories: stories,
+                onTap: openStory,
+                onAdd: ref.watch(authProvider).authenticated ? openStoryComposer : null,
               ),
-            ],
-          ),
-        ],
-      ),
-      actions: [
-        PopupMenuButton<String>(
-          initialValue: sort,
-          onSelected: (v) {
-            sort = v;
-            load();
-          },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'newest', child: Text('Newest')),
-            PopupMenuItem(value: 'oldest', child: Text('Oldest')),
-            PopupMenuItem(value: 'popular', child: Text('Popular')),
-          ],
-          icon: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: .16),
-              borderRadius: BorderRadius.circular(13),
             ),
-            child: const Icon(
-              Icons.tune_rounded,
-              size: 20,
-              color: Colors.white,
-            ),
-          ),
-        ),
-      ],
-    ),
-    floatingActionButton: ref.watch(authProvider).authenticated
-        ? FloatingActionButton.extended(
-            onPressed: openComposer,
-            backgroundColor: const Color(0xFF0F766E),
-            foregroundColor: Colors.white,
-            elevation: 3,
-            icon: const Icon(Icons.add_rounded),
-            label: const Text(
-              'Share a moment',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
-          )
-        : null,
-    body: RefreshIndicator(
-      onRefresh: () async {
-        await Future.wait([load(), loadStories()]);
-      },
-      child: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF0F766E), Color(0xFF0891B2)],
-                ),
-                borderRadius: BorderRadius.vertical(
-                  bottom: Radius.circular(20),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'See the world through\nother travelers’ eyes.',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      height: 1.1,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -.7,
-                    ),
+
+            // Error
+            if (error != null)
+              SliverToBoxAdapter(child: _ErrorBanner(error: error!, onRetry: load))
+            else if (loading)
+              const SliverPadding(
+                padding: EdgeInsets.all(16),
+                sliver: _FeedSkeleton(),
+              )
+            else if (posts.isEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 60),
+                  child: AppEmptyState(
+                    icon: Icons.dynamic_feed_rounded,
+                    title: 'Nothing to see here',
+                    subtitle: 'No travel posts found. Be the first to share!',
                   ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Real places. Real stories. Your next inspiration.',
-                    style: TextStyle(color: Color(0xCCFFFFFF), fontSize: 12),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+                sliver: SliverList.separated(
+                  itemCount: posts.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 14),
+                  itemBuilder: (_, i) => _PostCard(
+                    post: posts[i],
+                    onLike: () => toggleLike(posts[i]),
+                    onComment: () => openComments(posts[i]),
+                    onShare: () => share(posts[i]),
                   ),
-                  const SizedBox(height: 13),
-                  SearchBar(
-                    controller: search,
-                    backgroundColor: const WidgetStatePropertyAll(Colors.white),
-                    elevation: const WidgetStatePropertyAll(0),
-                    side: const WidgetStatePropertyAll(
-                      BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                    shape: WidgetStatePropertyAll(
-                      RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    hintText: 'Search posts, places, experiences…',
-                    leading: const Icon(
-                      Icons.search_rounded,
-                      color: Color(0xFF64748B),
-                    ),
-                    onSubmitted: (_) => load(),
-                    trailing: [
-                      if (search.text.isNotEmpty)
-                        IconButton(
-                          onPressed: () {
-                            search.clear();
-                            load();
-                          },
-                          icon: const Icon(Icons.close),
-                        ),
-                    ],
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: _Stories(
-              stories: stories,
-              onTap: openStory,
-              onAdd: ref.watch(authProvider).authenticated
-                  ? openStoryComposer
-                  : null,
-            ),
-          ),
-          if (error != null)
+
+            // Load more
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF1F2),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: Color(0xFFBE123C)),
-                      const SizedBox(width: 10),
-                      Expanded(child: Text(error!)),
-                      TextButton(
-                        onPressed: () => load(),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )
-          else if (loading)
-            const SliverPadding(
-              padding: EdgeInsets.all(12),
-              sliver: _FeedSkeleton(),
-            )
-          else if (posts.isEmpty)
-            const SliverToBoxAdapter(
-              child: SizedBox(
-                height: 300,
-                child: Center(child: Text('No travel posts found.')),
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 22),
-              sliver: SliverList.separated(
-                itemCount: posts.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 14),
-                itemBuilder: (_, i) => _PostCard(
-                  post: posts[i],
-                  onLike: () => toggleLike(posts[i]),
-                  onComment: () => openComments(posts[i]),
-                  onShare: () => share(posts[i]),
-                ),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
+                child: loadingMore
+                    ? const Center(child: CircularProgressIndicator())
+                    : page < totalPages
+                    ? OutlinedButton(
+                        onPressed: () => load(more: true),
+                        child: const Text('Load more posts'),
+                      )
+                    : posts.isNotEmpty
+                    ? Center(
+                        child: Text(
+                          "You're all caught up ✓",
+                          style: AppTextStyles.bodySmall,
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ),
             ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-              child: loadingMore
-                  ? const Center(child: CircularProgressIndicator())
-                  : page < totalPages
-                  ? OutlinedButton(
-                      onPressed: () => load(more: true),
-                      child: const Text('Load more posts'),
-                    )
-                  : posts.isNotEmpty
-                  ? const Center(
-                      child: Text(
-                        "You're all caught up",
-                        style: TextStyle(color: Color(0xFF64748B)),
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );
+
   Future<void> share(Map<String, dynamic> post) async {
     final id = _postId(post);
     await ref
         .read(dioProvider)
         .post('/travel-feed/$id/share', data: {'platform': 'other'})
-        .catchError((_) {
-          return Response(requestOptions: RequestOptions());
-        });
+        .catchError((_) => Response(requestOptions: RequestOptions()));
     if (mounted)
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Post share recorded.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Post share recorded.')),
+      );
   }
 
   Future<void> openComposer() async {
@@ -412,9 +263,10 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
 
   void openStory(int index) => showDialog(
     context: context,
-    barrierColor: Colors.black.withValues(alpha: .95),
+    barrierColor: Colors.black.withValues(alpha: .96),
     builder: (_) => _StoryViewer(stories: stories, index: index),
   );
+
   void openComments(Map<String, dynamic> post) => showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -423,40 +275,161 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
   );
 }
 
-class _FeedLogo extends StatelessWidget {
-  const _FeedLogo();
+// ─── Feed Header ─────────────────────────────────────────────────────────────
+
+class _FeedHeader extends StatelessWidget {
+  const _FeedHeader({
+    required this.search,
+    required this.onSearch,
+    required this.sort,
+    required this.onSortChanged,
+  });
+  final TextEditingController search;
+  final VoidCallback onSearch;
+  final String sort;
+  final ValueChanged<String> onSortChanged;
+
   @override
   Widget build(BuildContext context) => Container(
-    width: 34,
-    height: 34,
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(11),
-      gradient: const LinearGradient(
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF14B8A6), Color(0xFF0E7490)],
+        colors: [Color(0xFF065F52), Color(0xFF0A7E6E), Color(0xFF0891B2)],
+        stops: [0, 0.5, 1],
       ),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x3314B8A6),
-          blurRadius: 12,
-          offset: Offset(0, 4),
-        ),
-      ],
+      borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
     ),
-    child: const Icon(
-      Icons.travel_explore_rounded,
-      color: Colors.white,
-      size: 20,
+    child: SafeArea(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .15),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: const Icon(Icons.travel_explore_rounded, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TravelLens',
+                      style: AppTextStyles.h4White.copyWith(letterSpacing: -.3),
+                    ),
+                    Text('Discover moments', style: AppTextStyles.bodySmallWhite.copyWith(fontSize: 10)),
+                  ],
+                ),
+                const Spacer(),
+                PopupMenuButton<String>(
+                  initialValue: sort,
+                  onSelected: onSortChanged,
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'newest', child: Text('Newest')),
+                    PopupMenuItem(value: 'oldest', child: Text('Oldest')),
+                    PopupMenuItem(value: 'popular', child: Text('Popular')),
+                  ],
+                  child: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .15),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: const Icon(Icons.tune_rounded, color: Colors.white, size: 20),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "See the world through\ntravelers' eyes.",
+                  style: AppTextStyles.h3White.copyWith(fontSize: 20),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Real stories. Real places. Your next inspiration.',
+                  style: AppTextStyles.bodySmallWhite,
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+            child: Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: .15),
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 8),
+                  const Icon(Icons.search_rounded, color: AppColors.muted, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: search,
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (_) => onSearch(),
+                      style: AppTextStyles.body,
+                      decoration: InputDecoration(
+                        hintText: 'Search posts, places, experiences…',
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                        hintStyle: AppTextStyles.body.copyWith(color: AppColors.subtle),
+                      ),
+                    ),
+                  ),
+                  FilledButton(
+                    onPressed: onSearch,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(50, 42),
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Icon(Icons.arrow_forward_rounded, size: 18),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
 
-class _Stories extends StatelessWidget {
-  const _Stories({required this.stories, required this.onTap, this.onAdd});
+// ─── Stories Section ─────────────────────────────────────────────────────────
+
+class _StoriesSection extends StatelessWidget {
+  const _StoriesSection({required this.stories, required this.onTap, this.onAdd});
   final List<Map<String, dynamic>> stories;
   final ValueChanged<int> onTap;
   final VoidCallback? onAdd;
+
   @override
   Widget build(BuildContext context) {
     final grouped = <String, List<Map<String, dynamic>>>{};
@@ -464,77 +437,57 @@ class _Stories extends StatelessWidget {
       grouped.putIfAbsent(_storyUserId(story), () => []).add(story);
     }
     final groups = grouped.values.toList();
+
     return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFE8EDF3))),
-      ),
+      margin: const EdgeInsets.fromLTRB(0, 6, 0, 0),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Travel Stories',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 16,
-                        letterSpacing: -.3,
-                      ),
-                    ),
-                    Text(
-                      'Shared in the last 24 hours',
-                      style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
-                    ),
+                    Text('Travel Stories', style: AppTextStyles.h4),
+                    Text('Shared in the last 24 hours', style: AppTextStyles.caption),
                   ],
                 ),
               ),
               if (onAdd != null)
-                TextButton.icon(
+                FilledButton.tonalIcon(
                   onPressed: onAdd,
-                  style: TextButton.styleFrom(
-                    backgroundColor: const Color(0xFFECFDF5),
-                    foregroundColor: const Color(0xFF0F766E),
+                  style: FilledButton.styleFrom(
                     minimumSize: const Size(0, 36),
-                    padding: const EdgeInsets.symmetric(horizontal: 11),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    backgroundColor: AppColors.successSoft,
+                    foregroundColor: AppColors.success,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   ),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text(
-                    'Add story',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
+                  icon: const Icon(Icons.add_rounded, size: 16),
+                  label: Text('Add', style: AppTextStyles.label.copyWith(color: AppColors.success)),
                 ),
             ],
           ),
-          const SizedBox(height: 9),
+          const SizedBox(height: 12),
           SizedBox(
-            height: 72,
+            height: 78,
             child: groups.isEmpty
-                ? const Align(
+                ? Align(
                     alignment: Alignment.centerLeft,
-                    child: Text(
-                      'No active stories yet.',
-                      style: TextStyle(color: Color(0xFF64748B)),
-                    ),
+                    child: Text('No active stories yet.', style: AppTextStyles.bodySmall),
                   )
                 : ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: groups.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 13),
+                    separatorBuilder: (_, _) => const SizedBox(width: 14),
                     itemBuilder: (_, i) {
                       final story = groups[i].first;
                       final originalIndex = stories.indexOf(story);
                       final author = _author(story);
-                      final avatar = AppConfig.assetUrl(_avatar(story));
+                      final avatar = AppConfig.assetUrl(_avatar(story) ?? '');
                       return GestureDetector(
                         onTap: () => onTap(originalIndex),
                         child: SizedBox(
@@ -542,29 +495,31 @@ class _Stories extends StatelessWidget {
                           child: Column(
                             children: [
                               Container(
-                                width: 48,
-                                height: 48,
-                                padding: const EdgeInsets.all(2),
+                                width: 52,
+                                height: 52,
+                                padding: const EdgeInsets.all(2.5),
                                 decoration: const BoxDecoration(
                                   shape: BoxShape.circle,
                                   gradient: LinearGradient(
-                                    colors: [
-                                      Color(0xFFD946EF),
-                                      Color(0xFFF43F5E),
-                                      Color(0xFFF59E0B),
-                                    ],
+                                    colors: [Color(0xFFD946EF), Color(0xFFF43F5E), Color(0xFFF59E0B)],
                                   ),
                                 ),
-                                child: CircleAvatar(
-                                  backgroundColor: Colors.white,
-                                  backgroundImage: avatar.isEmpty
-                                      ? null
-                                      : CachedNetworkImageProvider(avatar),
-                                  child: avatar.isEmpty
-                                      ? Text(
-                                          author.characters.first.toUpperCase(),
-                                        )
-                                      : null,
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white,
+                                  ),
+                                  padding: const EdgeInsets.all(2),
+                                  child: CircleAvatar(
+                                    backgroundColor: AppColors.borderLight,
+                                    backgroundImage: avatar.isEmpty ? null : CachedNetworkImageProvider(avatar),
+                                    child: avatar.isEmpty
+                                        ? Text(
+                                            author.characters.first.toUpperCase(),
+                                            style: AppTextStyles.label.copyWith(fontSize: 16),
+                                          )
+                                        : null,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 5),
@@ -572,10 +527,7 @@ class _Stories extends StatelessWidget {
                                 author,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
                               ),
                             ],
                           ),
@@ -590,6 +542,8 @@ class _Stories extends StatelessWidget {
   }
 }
 
+// ─── Post Card ────────────────────────────────────────────────────────────────
+
 class _PostCard extends StatelessWidget {
   const _PostCard({
     required this.post,
@@ -599,6 +553,7 @@ class _PostCard extends StatelessWidget {
   });
   final Map<String, dynamic> post;
   final VoidCallback onLike, onComment, onShare;
+
   @override
   Widget build(BuildContext context) {
     final author = post['author'] is Map ? post['author'] as Map : const {};
@@ -607,176 +562,139 @@ class _PostCard extends StatelessWidget {
         .whereType<Map>()
         .toList();
     final liked = post['is_liked'] == true;
+    final authorName = '${author['name'] ?? 'Traveler'}';
+
     return Material(
       color: Colors.white,
-      elevation: 0,
-      shadowColor: const Color(0x180F172A),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-        side: const BorderSide(color: Color(0xFFE8EDF3)),
-      ),
+      borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Author header
           Padding(
             padding: const EdgeInsets.all(14),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 21,
-                  backgroundColor: const Color(0xFFE0F2FE),
-                  backgroundImage: avatar.isEmpty
-                      ? null
-                      : CachedNetworkImageProvider(avatar),
-                  child: avatar.isEmpty
-                      ? Text('${author['name'] ?? 'T'}'.characters.first)
-                      : null,
-                ),
+                AppAvatar(name: authorName, imageUrl: avatar.isEmpty ? null : avatar, radius: 22),
                 const SizedBox(width: 11),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '${author['name'] ?? 'Traveler'}',
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
+                      Text(authorName, style: AppTextStyles.label),
                       Text(
                         _date('${post['created_at'] ?? ''}'),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF64748B),
-                        ),
+                        style: AppTextStyles.caption,
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(12),
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
-                    Icons.more_horiz_rounded,
-                    color: Color(0xFF64748B),
-                    size: 20,
-                  ),
+                  child: const Icon(Icons.more_horiz_rounded, color: AppColors.muted, size: 18),
                 ),
               ],
             ),
           ),
+
+          // Content
           if ('${post['content'] ?? ''}'.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(15, 0, 15, 13),
-              child: Text(
-                '${post['content']}',
-                style: const TextStyle(fontSize: 15, height: 1.45),
-              ),
+              padding: const EdgeInsets.fromLTRB(15, 0, 15, 12),
+              child: Text('${post['content']}', style: AppTextStyles.body),
             ),
+
+          // Location
           if (post['destination_name'] != null || post['location_name'] != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(15, 0, 15, 12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECFEFF),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.location_on_rounded,
-                      color: Color(0xFF0E7490),
-                      size: 15,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: .08),
+                      borderRadius: BorderRadius.circular(30),
                     ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        '${post['location_name'] ?? post['destination_name']}',
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF0E7490),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.location_on_rounded, color: AppColors.accent, size: 14),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${post['location_name'] ?? post['destination_name']}',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.accent,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
+
+          // Photos
           if (photos.isNotEmpty) _PhotoGrid(photos: photos),
+
+          // Stats
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
               children: [
                 Text(
                   '${post['like_count'] ?? 0} likes',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF64748B),
-                  ),
+                  style: AppTextStyles.caption,
                 ),
                 const Spacer(),
                 Text(
                   '${post['comment_count'] ?? 0} comments · ${post['share_count'] ?? 0} shares',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF64748B),
-                  ),
+                  style: AppTextStyles.caption,
                 ),
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFEEF2F6)),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: onLike,
-                  style: TextButton.styleFrom(
-                    foregroundColor: liked
-                        ? const Color(0xFFE11D48)
-                        : const Color(0xFF475569),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
+          const Divider(height: 1, color: AppColors.borderLight),
+
+          // Action bar
+          IntrinsicHeight(
+            child: Row(
+              children: [
+                Expanded(
+                  child: _ActionBtn(
+                    icon: liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    label: liked ? 'Liked' : 'Like',
+                    active: liked,
+                    activeColor: const Color(0xFFFF4D6D),
+                    onTap: onLike,
                   ),
-                  icon: Icon(
-                    liked ? Icons.favorite : Icons.favorite_border,
-                    color: liked ? const Color(0xFFE11D48) : null,
-                  ),
-                  label: Text(liked ? 'Liked' : 'Like'),
                 ),
-              ),
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: onComment,
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF475569),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
+                const VerticalDivider(width: 1, color: AppColors.borderLight),
+                Expanded(
+                  child: _ActionBtn(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    label: 'Comment',
+                    onTap: onComment,
                   ),
-                  icon: const Icon(Icons.chat_bubble_outline),
-                  label: const Text('Comment'),
                 ),
-              ),
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: onShare,
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF475569),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
+                const VerticalDivider(width: 1, color: AppColors.borderLight),
+                Expanded(
+                  child: _ActionBtn(
+                    icon: Icons.share_outlined,
+                    label: 'Share',
+                    onTap: onShare,
                   ),
-                  icon: const Icon(Icons.share_outlined),
-                  label: const Text('Share'),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -784,9 +702,51 @@ class _PostCard extends StatelessWidget {
   }
 }
 
+class _ActionBtn extends StatelessWidget {
+  const _ActionBtn({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.active = false,
+    this.activeColor = AppColors.brand,
+  });
+  final IconData icon;
+  final String label;
+  final bool active;
+  final Color activeColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => TextButton(
+    onPressed: onTap,
+    style: TextButton.styleFrom(
+      foregroundColor: active ? activeColor : AppColors.muted,
+      padding: const EdgeInsets.symmetric(vertical: 13),
+      shape: const RoundedRectangleBorder(),
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, size: 18, color: active ? activeColor : AppColors.muted),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: AppTextStyles.label.copyWith(
+            color: active ? activeColor : AppColors.muted,
+            fontSize: 13,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// ─── Photo Grid ───────────────────────────────────────────────────────────────
+
 class _PhotoGrid extends StatelessWidget {
   const _PhotoGrid({required this.photos});
   final List<Map> photos;
+
   @override
   Widget build(BuildContext context) {
     void open(int index) => showDialog<void>(
@@ -794,6 +754,7 @@ class _PhotoGrid extends StatelessWidget {
       barrierColor: Colors.black.withValues(alpha: .96),
       builder: (_) => _PhotoViewer(photos: photos, initialIndex: index),
     );
+
     if (photos.length == 1)
       return GestureDetector(
         onTap: () => open(0),
@@ -807,8 +768,9 @@ class _PhotoGrid extends StatelessWidget {
           ),
         ),
       );
+
     return SizedBox(
-      height: 260,
+      height: 256,
       child: GridView.builder(
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -834,11 +796,7 @@ class _PhotoGrid extends StatelessWidget {
                   child: Center(
                     child: Text(
                       '+${photos.length - 4}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: AppTextStyles.h2White.copyWith(fontSize: 28),
                     ),
                   ),
                 ),
@@ -850,6 +808,8 @@ class _PhotoGrid extends StatelessWidget {
   }
 }
 
+// ─── Photo Viewer ─────────────────────────────────────────────────────────────
+
 class _PhotoViewer extends StatefulWidget {
   const _PhotoViewer({required this.photos, required this.initialIndex});
   final List<Map> photos;
@@ -859,10 +819,9 @@ class _PhotoViewer extends StatefulWidget {
 }
 
 class _PhotoViewerState extends State<_PhotoViewer> {
-  late final PageController controller = PageController(
-    initialPage: widget.initialIndex,
-  );
+  late final PageController controller = PageController(initialPage: widget.initialIndex);
   late int index = widget.initialIndex;
+
   @override
   void dispose() {
     controller.dispose();
@@ -877,7 +836,7 @@ class _PhotoViewerState extends State<_PhotoViewer> {
         PageView.builder(
           controller: controller,
           itemCount: widget.photos.length,
-          onPageChanged: (value) => setState(() => index = value),
+          onPageChanged: (v) => setState(() => index = v),
           itemBuilder: (_, i) => InteractiveViewer(
             minScale: 1,
             maxScale: 5,
@@ -897,16 +856,21 @@ class _PhotoViewerState extends State<_PhotoViewer> {
           right: 8,
           child: Row(
             children: [
-              IconButton.filledTonal(
+              IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close),
+                icon: const Icon(Icons.close_rounded, color: Colors.white),
+                style: IconButton.styleFrom(backgroundColor: Colors.black45),
               ),
               const Spacer(),
-              Text(
-                '${index + 1}/${widget.photos.length}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: Colors.black45,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${index + 1} / ${widget.photos.length}',
+                  style: AppTextStyles.label.copyWith(color: Colors.white),
                 ),
               ),
               const Spacer(),
@@ -919,6 +883,8 @@ class _PhotoViewerState extends State<_PhotoViewer> {
   );
 }
 
+// ─── Composer ─────────────────────────────────────────────────────────────────
+
 class _Composer extends ConsumerStatefulWidget {
   const _Composer();
   @override
@@ -929,6 +895,7 @@ class _ComposerState extends ConsumerState<_Composer> {
   final content = TextEditingController();
   XFile? image;
   bool saving = false;
+
   @override
   void dispose() {
     content.dispose();
@@ -953,9 +920,7 @@ class _ComposerState extends ConsumerState<_Composer> {
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(apiError(e))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiError(e))));
     } finally {
       if (mounted) setState(() => saving = false);
     }
@@ -964,19 +929,26 @@ class _ComposerState extends ConsumerState<_Composer> {
   @override
   Widget build(BuildContext context) => Material(
     color: Colors.white,
-    borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+    borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
     clipBehavior: Clip.antiAlias,
     child: SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(
-        18,
-        18,
-        18,
-        MediaQuery.viewInsetsOf(context).bottom + 22,
-      ),
+      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.viewInsetsOf(context).bottom + 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.borderLight,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           Row(
             children: [
               Container(
@@ -984,82 +956,87 @@ class _ComposerState extends ConsumerState<_Composer> {
                 height: 46,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(15),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF14B8A6), Color(0xFF0891B2)],
-                  ),
+                  gradient: const LinearGradient(colors: AppColors.brandGradientLight),
                 ),
-                child: const Icon(
-                  Icons.auto_awesome_rounded,
-                  color: Colors.white,
-                ),
+                child: const Icon(Icons.auto_awesome_rounded, color: Colors.white),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Share a moment',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -.5,
-                      ),
-                    ),
-                    Text(
-                      'Inspire travelers with your journey',
-                      style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
-                    ),
+                    Text('Share a moment', style: AppTextStyles.h3),
+                    Text('Inspire travelers with your story', style: AppTextStyles.caption),
                   ],
                 ),
               ),
               IconButton(
                 onPressed: saving ? null : () => Navigator.pop(context),
-                icon: const Icon(Icons.close_rounded),
+                icon: const Icon(Icons.close_rounded, color: AppColors.muted),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 18),
           TextField(
             controller: content,
             maxLines: 5,
+            minLines: 3,
             decoration: const InputDecoration(
-              hintText: "Share your travel experience…",
+              hintText: 'Share your travel experience…',
             ),
           ),
           if (image != null)
             Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Image.file(
-                  File(image!.path),
-                  height: 180,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
+              padding: const EdgeInsets.only(top: 14),
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Image.file(
+                      File(image!.path),
+                      height: 180,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: IconButton(
+                      onPressed: () => setState(() => image = null),
+                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      style: IconButton.styleFrom(backgroundColor: Colors.black45, minimumSize: const Size(32, 32)),
+                    ),
+                  ),
+                ],
               ),
             ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Row(
             children: [
               OutlinedButton.icon(
                 onPressed: () async {
-                  final x = await ImagePicker().pickImage(
-                    source: ImageSource.gallery,
-                    imageQuality: 85,
-                  );
+                  final x = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
                   if (x != null) setState(() => image = x);
                 },
-                icon: const Icon(Icons.photo_library_outlined),
+                icon: const Icon(Icons.photo_library_outlined, size: 18),
                 label: const Text('Photo'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 44),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
               ),
               const Spacer(),
-              FilledButton(
+              FilledButton.icon(
                 onPressed: saving ? null : submit,
-                child: saving
-                    ? const CircularProgressIndicator()
-                    : const Text('Publish'),
+                icon: saving
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.send_rounded, size: 18),
+                label: Text(saving ? 'Publishing…' : 'Publish'),
+                style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
               ),
             ],
           ),
@@ -1068,6 +1045,8 @@ class _ComposerState extends ConsumerState<_Composer> {
     ),
   );
 }
+
+// ─── Story Composer ───────────────────────────────────────────────────────────
 
 class _StoryComposer extends ConsumerStatefulWidget {
   const _StoryComposer();
@@ -1079,6 +1058,7 @@ class _StoryComposerState extends ConsumerState<_StoryComposer> {
   XFile? file;
   final caption = TextEditingController();
   bool saving = false;
+
   @override
   void dispose() {
     caption.dispose();
@@ -1090,19 +1070,14 @@ class _StoryComposerState extends ConsumerState<_StoryComposer> {
     setState(() => saving = true);
     try {
       final form = FormData.fromMap({
-        'media_file': await MultipartFile.fromFile(
-          file!.path,
-          filename: file!.name,
-        ),
+        'media_file': await MultipartFile.fromFile(file!.path, filename: file!.name),
         'caption': caption.text.trim(),
       });
       await ref.read(dioProvider).post('/travel-stories', data: form);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(apiError(e))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiError(e))));
     } finally {
       if (mounted) setState(() => saving = false);
     }
@@ -1110,21 +1085,13 @@ class _StoryComposerState extends ConsumerState<_StoryComposer> {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.fromLTRB(
-      18,
-      0,
-      18,
-      MediaQuery.viewInsetsOf(context).bottom + 22,
-    ),
+    padding: EdgeInsets.fromLTRB(18, 0, 18, MediaQuery.viewInsetsOf(context).bottom + 24),
     child: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Create Travel Story',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 14),
+        Text('Create Travel Story', style: AppTextStyles.h3),
+        const SizedBox(height: 16),
         GestureDetector(
           onTap: () async {
             final x = await ImagePicker().pickMedia();
@@ -1134,37 +1101,52 @@ class _StoryComposerState extends ConsumerState<_StoryComposer> {
             height: 210,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(16),
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: file != null ? AppColors.brand : AppColors.border,
+                width: file != null ? 2 : 1,
+                style: BorderStyle.solid,
+              ),
             ),
             child: file == null
-                ? const Column(
+                ? Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.upload, size: 38),
-                      Text('Choose an image or video'),
+                      Icon(Icons.upload_rounded, size: 38, color: AppColors.muted),
+                      const SizedBox(height: 8),
+                      Text('Choose an image or video', style: AppTextStyles.bodySmall),
                     ],
                   )
-                : Image.file(File(file!.path), fit: BoxFit.contain),
+                : ClipRRect(
+                    borderRadius: BorderRadius.circular(17),
+                    child: Image.file(File(file!.path), fit: BoxFit.contain),
+                  ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         TextField(
           controller: caption,
           maxLength: 1000,
           maxLines: 3,
           decoration: const InputDecoration(hintText: 'Add a caption…'),
         ),
+        const SizedBox(height: 12),
         FilledButton(
           onPressed: saving ? null : submit,
           child: saving
-              ? const CircularProgressIndicator()
+              ? const SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
               : const Text('Publish Story'),
         ),
       ],
     ),
   );
 }
+
+// ─── Story Viewer ─────────────────────────────────────────────────────────────
 
 class _StoryViewer extends StatefulWidget {
   const _StoryViewer({required this.stories, required this.index});
@@ -1178,6 +1160,7 @@ class _StoryViewerState extends State<_StoryViewer> {
   late int index;
   Timer? timer;
   static const duration = Duration(seconds: 6);
+
   @override
   void initState() {
     super.initState();
@@ -1210,14 +1193,14 @@ class _StoryViewerState extends State<_StoryViewer> {
 
   @override
   Widget build(BuildContext context) {
-    final s = widget.stories[index],
-        media = AppConfig.assetUrl('${s['media_url'] ?? s['url'] ?? ''}');
+    final s = widget.stories[index];
+    final media = AppConfig.assetUrl('${s['media_url'] ?? s['url'] ?? ''}');
     final video = '${s['media_type'] ?? ''}'.toLowerCase() == 'video';
     return Dialog(
       backgroundColor: Colors.black,
       insetPadding: const EdgeInsets.all(12),
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: SizedBox(
         height: MediaQuery.sizeOf(context).height * .78,
         child: Stack(
@@ -1228,7 +1211,7 @@ class _StoryViewerState extends State<_StoryViewer> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.play_circle_fill, color: Colors.white, size: 72),
+                    Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 72),
                     SizedBox(height: 10),
                     Text('Video story', style: TextStyle(color: Colors.white)),
                   ],
@@ -1236,10 +1219,11 @@ class _StoryViewerState extends State<_StoryViewer> {
               )
             else
               CachedNetworkImage(imageUrl: media, fit: BoxFit.contain),
+            // Progress bars
             Positioned(
               left: 12,
               right: 12,
-              top: 8,
+              top: 10,
               child: Row(
                 children: List.generate(
                   widget.stories.length,
@@ -1253,20 +1237,17 @@ class _StoryViewerState extends State<_StoryViewer> {
                         borderRadius: BorderRadius.circular(9),
                       ),
                       child: i < index
-                          ? const ColoredBox(color: Color(0xFF22D3EE))
+                          ? const ColoredBox(color: AppColors.accent)
                           : i == index
                           ? TweenAnimationBuilder<double>(
-                              key: ValueKey('visible-story-progress-$index'),
+                              key: ValueKey('progress-$index'),
                               tween: Tween(begin: 0, end: 1),
                               duration: duration,
-                              builder: (_, value, child) =>
-                                  FractionallySizedBox(
-                                    widthFactor: value,
-                                    alignment: Alignment.centerLeft,
-                                    child: const ColoredBox(
-                                      color: Color(0xFF22D3EE),
-                                    ),
-                                  ),
+                              builder: (_, v, _) => FractionallySizedBox(
+                                widthFactor: v,
+                                alignment: Alignment.centerLeft,
+                                child: const ColoredBox(color: AppColors.accent),
+                              ),
                             )
                           : const SizedBox.shrink(),
                     ),
@@ -1274,28 +1255,28 @@ class _StoryViewerState extends State<_StoryViewer> {
                 ),
               ),
             ),
+            // Author bar
             Positioned(
               left: 12,
               right: 12,
-              top: 12,
+              top: 24,
               child: Row(
                 children: [
                   Expanded(
                     child: Text(
                       _author(s),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                      ),
+                      style: AppTextStyles.label.copyWith(color: Colors.white),
                     ),
                   ),
-                  IconButton.filledTonal(
+                  IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close_rounded, color: Colors.white),
+                    style: IconButton.styleFrom(backgroundColor: Colors.black38),
                   ),
                 ],
               ),
             ),
+            // Caption
             if (s['caption'] != null)
               Positioned(
                 left: 14,
@@ -1305,36 +1286,29 @@ class _StoryViewerState extends State<_StoryViewer> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.black54,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text(
                     '${s['caption']}',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white),
+                    style: AppTextStyles.bodyWhite,
                   ),
                 ),
               ),
+            // Navigation areas
             Positioned(
-              left: 4,
+              left: 0,
               top: 0,
               bottom: 0,
-              child: Center(
-                child: IconButton.filledTonal(
-                  onPressed: index > 0 ? () => _go(index - 1) : null,
-                  icon: const Icon(Icons.chevron_left),
-                ),
-              ),
+              width: MediaQuery.sizeOf(context).width * .35,
+              child: GestureDetector(onTap: () => _go(index - 1)),
             ),
             Positioned(
-              right: 4,
+              right: 0,
               top: 0,
               bottom: 0,
-              child: Center(
-                child: IconButton.filledTonal(
-                  onPressed: _next,
-                  icon: const Icon(Icons.chevron_right),
-                ),
-              ),
+              width: MediaQuery.sizeOf(context).width * .35,
+              child: GestureDetector(onTap: _next),
             ),
           ],
         ),
@@ -1342,6 +1316,8 @@ class _StoryViewerState extends State<_StoryViewer> {
     );
   }
 }
+
+// ─── Comments ─────────────────────────────────────────────────────────────────
 
 class _Comments extends ConsumerStatefulWidget {
   const _Comments({required this.postId});
@@ -1356,6 +1332,7 @@ class _CommentsState extends ConsumerState<_Comments> {
   Map<String, dynamic>? replyingTo;
   Map<String, dynamic>? editingComment;
   bool sending = false;
+
   @override
   void initState() {
     super.initState();
@@ -1369,12 +1346,10 @@ class _CommentsState extends ConsumerState<_Comments> {
   }
 
   Future<List<Map<String, dynamic>>> load() async {
-    final r = await ref
-        .read(dioProvider)
-        .get(
-          '/travel-feed/${widget.postId}/comments',
-          queryParameters: {'page': 1, 'limit': 100},
-        );
+    final r = await ref.read(dioProvider).get(
+      '/travel-feed/${widget.postId}/comments',
+      queryParameters: {'page': 1, 'limit': 100},
+    );
     return _commentTree(unwrapList(r.data, ['comments']));
   }
 
@@ -1383,12 +1358,10 @@ class _CommentsState extends ConsumerState<_Comments> {
     setState(() => sending = true);
     try {
       if (editingComment != null) {
-        await ref
-            .read(dioProvider)
-            .patch(
-              '/travel-feed/comments/${_commentId(editingComment!)}',
-              data: {'content': input.text.trim()},
-            );
+        await ref.read(dioProvider).patch(
+          '/travel-feed/comments/${_commentId(editingComment!)}',
+          data: {'content': input.text.trim()},
+        );
         input.clear();
         setState(() {
           editingComment = null;
@@ -1397,15 +1370,13 @@ class _CommentsState extends ConsumerState<_Comments> {
         return;
       }
       final parentId = _commentId(replyingTo ?? const {});
-      await ref
-          .read(dioProvider)
-          .post(
-            '/travel-feed/${widget.postId}/comments',
-            data: {
-              'content': input.text.trim(),
-              if (parentId > 0) 'parent_comment_id': parentId,
-            },
-          );
+      await ref.read(dioProvider).post(
+        '/travel-feed/${widget.postId}/comments',
+        data: {
+          'content': input.text.trim(),
+          if (parentId > 0) 'parent_comment_id': parentId,
+        },
+      );
       input.clear();
       setState(() {
         replyingTo = null;
@@ -1413,9 +1384,7 @@ class _CommentsState extends ConsumerState<_Comments> {
       });
     } catch (e) {
       if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(apiError(e))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiError(e))));
     } finally {
       if (mounted) setState(() => sending = false);
     }
@@ -1433,21 +1402,19 @@ class _CommentsState extends ConsumerState<_Comments> {
   Future<void> deleteComment(Map<String, dynamic> comment) async {
     final confirmed = await showShadDialog<bool>(
       context: context,
-      builder: (dialogContext) => ShadDialog.alert(
+      builder: (ctx) => ShadDialog.alert(
         title: const Text('Delete this comment?'),
         description: const Padding(
           padding: EdgeInsets.only(bottom: 8),
-          child: Text(
-            'This comment will be permanently removed. This action cannot be undone.',
-          ),
+          child: Text('This comment will be permanently removed.'),
         ),
         actions: [
           ShadButton.outline(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Keep comment'),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep'),
           ),
           ShadButton.destructive(
-            onPressed: () => Navigator.pop(dialogContext, true),
+            onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Delete'),
           ),
         ],
@@ -1455,19 +1422,11 @@ class _CommentsState extends ConsumerState<_Comments> {
     );
     if (confirmed != true) return;
     try {
-      await ref
-          .read(dioProvider)
-          .delete('/travel-feed/comments/${_commentId(comment)}');
-      if (mounted) {
-        setState(() {
-          future = load();
-        });
-      }
+      await ref.read(dioProvider).delete('/travel-feed/comments/${_commentId(comment)}');
+      if (mounted) setState(() { future = load(); });
     } catch (e) {
       if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(apiError(e))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiError(e))));
     }
   }
 
@@ -1478,9 +1437,9 @@ class _CommentsState extends ConsumerState<_Comments> {
       height: MediaQuery.sizeOf(context).height * .72,
       child: Column(
         children: [
-          const Text(
-            'Comments',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
+            child: Text('Comments', style: AppTextStyles.h3),
           ),
           Expanded(
             child: FutureBuilder(
@@ -1489,11 +1448,14 @@ class _CommentsState extends ConsumerState<_Comments> {
                 if (!snap.hasData)
                   return const Center(child: CircularProgressIndicator());
                 final values = snap.data!;
+                if (values.isEmpty)
+                  return AppEmptyState(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    title: 'No comments yet',
+                    subtitle: 'Start the conversation!',
+                  );
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                   itemCount: values.length,
                   itemBuilder: (_, i) => _CommentItem(
                     comment: values[i],
@@ -1509,8 +1471,8 @@ class _CommentsState extends ConsumerState<_Comments> {
           if (replyingTo != null || editingComment != null)
             Container(
               width: double.infinity,
-              color: const Color(0xFFEFF6FF),
-              padding: const EdgeInsets.fromLTRB(16, 5, 8, 5),
+              color: AppColors.accentLight,
+              padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
               child: Row(
                 children: [
                   Expanded(
@@ -1518,11 +1480,7 @@ class _CommentsState extends ConsumerState<_Comments> {
                       editingComment != null
                           ? 'Editing your comment'
                           : 'Replying to ${_commentAuthor(replyingTo!)}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF0369A1),
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: AppTextStyles.label.copyWith(color: AppColors.accent, fontSize: 12),
                     ),
                   ),
                   IconButton(
@@ -1533,7 +1491,7 @@ class _CommentsState extends ConsumerState<_Comments> {
                         editingComment = null;
                       });
                     },
-                    icon: const Icon(Icons.close, size: 18),
+                    icon: const Icon(Icons.close_rounded, size: 18),
                   ),
                 ],
               ),
@@ -1545,19 +1503,18 @@ class _CommentsState extends ConsumerState<_Comments> {
                 Expanded(
                   child: TextField(
                     controller: input,
-                    decoration: const InputDecoration(
-                      hintText: 'Write a comment…',
-                    ),
+                    decoration: const InputDecoration(hintText: 'Write a comment…'),
                   ),
                 ),
+                const SizedBox(width: 10),
                 IconButton.filled(
                   onPressed: sending ? null : send,
                   icon: sending
                       ? const SizedBox.square(
                           dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Icon(Icons.send),
+                      : const Icon(Icons.send_rounded, size: 18),
                 ),
               ],
             ),
@@ -1585,51 +1542,39 @@ class _CommentItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final replies =
-        (comment['replies'] is List ? comment['replies'] as List : const [])
-            .whereType<Map>()
-            .map((item) => Map<String, dynamic>.from(item))
-            .toList();
+    final replies = (comment['replies'] is List ? comment['replies'] as List : const [])
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
     final owner = currentUserId > 0 && currentUserId == _commentUserId(comment);
+    final authorName = _commentAuthor(comment);
+
     return Padding(
-      padding: EdgeInsets.only(left: depth > 0 ? 28 : 0, bottom: 8),
+      padding: EdgeInsets.only(left: depth > 0 ? 28 : 0, bottom: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 17,
-                child: Text(
-                  _commentAuthor(comment).characters.first.toUpperCase(),
-                ),
-              ),
+              AppAvatar(name: authorName, radius: 17),
               const SizedBox(width: 9),
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 9,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(15),
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.border),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        _commentAuthor(comment),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
-                        ),
-                      ),
+                      Text(authorName, style: AppTextStyles.label.copyWith(fontSize: 13)),
                       const SizedBox(height: 3),
                       Text(
                         '${comment['content'] ?? comment['comment'] ?? ''}',
-                        style: const TextStyle(height: 1.35),
+                        style: AppTextStyles.body.copyWith(fontSize: 14, height: 1.4),
                       ),
                     ],
                   ),
@@ -1638,31 +1583,36 @@ class _CommentItem extends StatelessWidget {
             ],
           ),
           Padding(
-            padding: const EdgeInsets.only(left: 43),
+            padding: const EdgeInsets.only(left: 44),
             child: Row(
               children: [
                 TextButton(
                   onPressed: () => onReply(comment),
                   style: TextButton.styleFrom(
-                    minimumSize: const Size(45, 28),
+                    minimumSize: const Size(40, 28),
                     padding: const EdgeInsets.symmetric(horizontal: 4),
+                    foregroundColor: AppColors.muted,
                   ),
-                  child: const Text(
-                    'Reply',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                  ),
+                  child: Text('Reply', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700)),
                 ),
                 if (owner) ...[
                   TextButton(
                     onPressed: () => onEdit(comment),
-                    child: const Text('Edit', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(40, 28),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      foregroundColor: AppColors.muted,
+                    ),
+                    child: Text('Edit', style: AppTextStyles.caption),
                   ),
                   TextButton(
                     onPressed: () => onDelete(comment),
-                    child: const Text(
-                      'Delete',
-                      style: TextStyle(fontSize: 12, color: Color(0xFFBE123C)),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(40, 28),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      foregroundColor: AppColors.error,
                     ),
+                    child: Text('Delete', style: AppTextStyles.caption.copyWith(color: AppColors.error)),
                   ),
                 ],
               ],
@@ -1683,6 +1633,41 @@ class _CommentItem extends StatelessWidget {
   }
 }
 
+// ─── Error Banner ─────────────────────────────────────────────────────────────
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.error, required this.onRetry});
+  final String error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(16),
+    child: Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.errorSoft,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.error.withValues(alpha: .2)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+          const SizedBox(width: 10),
+          Expanded(child: Text(error, style: AppTextStyles.bodySmall.copyWith(color: AppColors.error))),
+          TextButton(
+            onPressed: onRetry,
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// ─── Feed Skeleton ────────────────────────────────────────────────────────────
+
 class _FeedSkeleton extends StatelessWidget {
   const _FeedSkeleton();
   @override
@@ -1690,22 +1675,23 @@ class _FeedSkeleton extends StatelessWidget {
     itemCount: 3,
     separatorBuilder: (_, _) => const SizedBox(height: 14),
     itemBuilder: (_, _) => Shimmer.fromColors(
-      baseColor: const Color(0xFFE2E8F0),
-      highlightColor: const Color(0xFFF8FAFC),
+      baseColor: const Color(0xFFE5E7EB),
+      highlightColor: const Color(0xFFF9FAFB),
       child: Container(
-        height: 410,
+        height: 380,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
         ),
       ),
     ),
   );
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 int _postId(Map p) => int.tryParse('${p['post_id'] ?? p['id'] ?? 0}') ?? 0;
-int _commentId(Map c) =>
-    int.tryParse('${c['comment_id'] ?? c['id'] ?? 0}') ?? 0;
+int _commentId(Map c) => int.tryParse('${c['comment_id'] ?? c['id'] ?? 0}') ?? 0;
 int _commentUserId(Map c) {
   final user = c['user'] is Map ? c['user'] as Map : const {};
   final author = c['author'] is Map ? c['author'] as Map : const {};
@@ -1716,10 +1702,8 @@ int _commentUserId(Map c) {
 }
 
 int _authUserId(Map<String, dynamic>? user) =>
-    int.tryParse(
-      '${user?['user_id'] ?? user?['customer_id'] ?? user?['id'] ?? 0}',
-    ) ??
-    0;
+    int.tryParse('${user?['user_id'] ?? user?['customer_id'] ?? user?['id'] ?? 0}') ?? 0;
+
 String _commentAuthor(Map c) {
   final user = c['user'] is Map ? c['user'] as Map : const {};
   final author = c['author'] is Map ? c['author'] as Map : const {};
@@ -1742,10 +1726,7 @@ List<Map<String, dynamic>> _flattenStories(dynamic payload) {
     if (nested is List) {
       for (final story in nested.whereType<Map>()) {
         final item = Map<String, dynamic>.from(story);
-        item.putIfAbsent(
-          'user_id',
-          () => group['user_id'] ?? group['customer_id'],
-        );
+        item.putIfAbsent('user_id', () => group['user_id'] ?? group['customer_id']);
         item.putIfAbsent('user', () => group['user'] ?? group['author']);
         result.add(item);
       }
@@ -1760,11 +1741,10 @@ List<Map<String, dynamic>> _commentTree(List<Map<String, dynamic>> source) {
   final byId = <int, Map<String, dynamic>>{};
   for (final value in source) {
     final item = Map<String, dynamic>.from(value);
-    item['replies'] =
-        (item['replies'] is List ? item['replies'] as List : const [])
-            .whereType<Map>()
-            .map((reply) => Map<String, dynamic>.from(reply))
-            .toList();
+    item['replies'] = (item['replies'] is List ? item['replies'] as List : const [])
+        .whereType<Map>()
+        .map((reply) => Map<String, dynamic>.from(reply))
+        .toList();
     byId[_commentId(item)] = item;
   }
   final roots = <Map<String, dynamic>>[];

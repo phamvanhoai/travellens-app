@@ -11,6 +11,9 @@ import 'package:shimmer/shimmer.dart';
 import '../../config/app_config.dart';
 import '../../core/network/api_client.dart';
 import '../../features/auth/auth_controller.dart';
+import '../../design/app_colors.dart';
+import '../../design/app_text_styles.dart';
+import '../../design/app_widgets.dart';
 
 class DestinationsScreen extends ConsumerStatefulWidget {
   const DestinationsScreen({super.key});
@@ -51,15 +54,10 @@ class _DestinationsScreenState extends ConsumerState<DestinationsScreen> {
 
   Future<void> _loadCategories() async {
     try {
-      final response = await ref
-          .read(dioProvider)
-          .get('/destination-categories');
+      final response = await ref.read(dioProvider).get('/destination-categories');
       if (!mounted) return;
       setState(
-        () => _categories = unwrapList(response.data, [
-          'categories',
-          'destination_categories',
-        ]),
+        () => _categories = unwrapList(response.data, ['categories', 'destination_categories']),
       );
     } catch (_) {}
   }
@@ -69,9 +67,7 @@ class _DestinationsScreenState extends ConsumerState<DestinationsScreen> {
     try {
       final response = await ref.read(dioProvider).get('/saved/ids');
       final data = unwrap(response.data);
-      final source = data is Map
-          ? data['destination_ids'] ?? data['destinations']
-          : null;
+      final source = data is Map ? data['destination_ids'] ?? data['destinations'] : null;
       if (!mounted || source is! List) return;
       setState(
         () => _savedIds = source.map((e) => int.tryParse('$e') ?? 0).toSet(),
@@ -94,8 +90,7 @@ class _DestinationsScreenState extends ConsumerState<DestinationsScreen> {
               'page': _page,
               'limit': 8,
               if (_search.isNotEmpty) 'search': _search,
-              if (_categoryId.isNotEmpty)
-                'destination_category_id': _categoryId,
+              if (_categoryId.isNotEmpty) 'destination_category_id': _categoryId,
               'sortBy': sort.$2,
               'sortOrder': sort.$3,
             },
@@ -112,15 +107,10 @@ class _DestinationsScreenState extends ConsumerState<DestinationsScreen> {
       if (!mounted) return;
       setState(() {
         _items = items;
-        _total =
-            int.tryParse('${pagination['total'] ?? items.length}') ??
-            items.length;
+        _total = int.tryParse('${pagination['total'] ?? items.length}') ?? items.length;
         _totalPages = math.max(
           1,
-          int.tryParse(
-                '${pagination['totalPages'] ?? pagination['total_pages'] ?? 1}',
-              ) ??
-              1,
+          int.tryParse('${pagination['totalPages'] ?? pagination['total_pages'] ?? 1}') ?? 1,
         );
       });
     } on DioException catch (e) {
@@ -142,31 +132,27 @@ class _DestinationsScreenState extends ConsumerState<DestinationsScreen> {
       return;
     }
     final id = _id(item);
-    setState(
-      () => _savedIds.contains(id) ? _savedIds.remove(id) : _savedIds.add(id),
-    );
+    setState(() => _savedIds.contains(id) ? _savedIds.remove(id) : _savedIds.add(id));
     try {
       await ref.read(dioProvider).post('/saved/destinations/$id/toggle');
     } catch (e) {
       if (!mounted) return;
-      setState(
-        () => _savedIds.contains(id) ? _savedIds.remove(id) : _savedIds.add(id),
-      );
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(apiError(e))));
+      setState(() => _savedIds.contains(id) ? _savedIds.remove(id) : _savedIds.add(id));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiError(e))));
     }
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF8FAFC),
+    backgroundColor: AppColors.surface,
     body: RefreshIndicator(
+      color: AppColors.brand,
       onRefresh: _load,
       child: CustomScrollView(
         slivers: [
+          // Hero
           SliverToBoxAdapter(
-            child: _Hero(
+            child: _DestinationHero(
               image: _heroImage,
               controller: _searchController,
               onSearch: () {
@@ -175,130 +161,130 @@ class _DestinationsScreenState extends ConsumerState<DestinationsScreen> {
               },
             ),
           ),
+
+          // Category chips + controls
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
+              padding: const EdgeInsets.fromLTRB(0, 20, 0, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(
-                    height: 42,
+                    height: 44,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       children: [
-                        _CategoryChip(
-                          label: 'All Destinations',
+                        AppFilterChip(
+                          label: 'All',
                           selected: _categoryId.isEmpty,
                           onTap: () {
                             _categoryId = '';
                             _apply();
                           },
                         ),
-                        ..._categories.map((category) {
-                          final id =
-                              '${category['destination_category_id'] ?? category['id'] ?? ''}';
-                          return _CategoryChip(
-                            label: '${category['name'] ?? 'Category'}',
-                            selected: _categoryId == id,
-                            onTap: () {
-                              _categoryId = id;
-                              _apply();
-                            },
+                        const SizedBox(width: 8),
+                        ..._categories.map((cat) {
+                          final id = '${cat['destination_category_id'] ?? cat['id'] ?? ''}';
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: AppFilterChip(
+                              label: '${cat['name'] ?? 'Category'}',
+                              selected: _categoryId == id,
+                              onTap: () {
+                                _categoryId = id;
+                                _apply();
+                              },
+                            ),
                           );
                         }),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _search.isEmpty
-                                  ? 'Travel destinations'
-                                  : 'Results for “$_search”',
-                              style: const TextStyle(
-                                fontSize: 19,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F172A),
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              _loading
-                                  ? 'Finding inspiring places…'
-                                  : '$_total destinations found',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFF64748B),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      PopupMenuButton<int>(
-                        initialValue: _sortIndex,
-                        onSelected: (value) {
-                          _sortIndex = value;
-                          _apply();
-                        },
-                        itemBuilder: (_) => List.generate(
-                          _sorts.length,
-                          (i) => PopupMenuItem(
-                            value: i,
-                            child: Text(_sorts[i].$1),
-                          ),
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 9,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.tune, size: 17),
-                              const SizedBox(width: 7),
                               Text(
-                                _sorts[_sortIndex].$1,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                _search.isEmpty ? 'Travel destinations' : 'Results for "$_search"',
+                                style: AppTextStyles.h3,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _loading ? 'Finding places…' : '$_total destinations found',
+                                style: AppTextStyles.bodySmall,
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    ],
+                        PopupMenuButton<int>(
+                          initialValue: _sortIndex,
+                          onSelected: (v) {
+                            _sortIndex = v;
+                            _apply();
+                          },
+                          itemBuilder: (_) => List.generate(
+                            _sorts.length,
+                            (i) => PopupMenuItem(
+                              value: i,
+                              child: Text(_sorts[i].$1),
+                            ),
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(color: AppColors.border),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.tune_rounded, size: 16, color: AppColors.muted),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _sorts[_sortIndex].$1,
+                                  style: AppTextStyles.label.copyWith(fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
           ),
+
+          // Content
           if (_error != null)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: _ErrorCard(message: _error!, retry: _load),
+                child: AppErrorState(error: _error!, onRetry: _load),
               ),
             )
           else if (_loading)
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(16, 6, 16, 24),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               sliver: _DestinationSkeleton(),
             )
           else if (_items.isEmpty)
-            const SliverToBoxAdapter(child: _EmptyState())
+            SliverToBoxAdapter(
+              child: AppEmptyState(
+                icon: Icons.travel_explore_rounded,
+                title: 'No destinations found',
+                subtitle: 'Try another search or category.',
+              ),
+            )
           else
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               sliver: SliverLayoutBuilder(
                 builder: (context, constraints) {
                   final columns = constraints.crossAxisExtent >= 760
@@ -311,21 +297,26 @@ class _DestinationsScreenState extends ConsumerState<DestinationsScreen> {
                       crossAxisCount: columns,
                       mainAxisSpacing: 16,
                       crossAxisSpacing: 16,
-                      childAspectRatio: columns == 1 ? 1.04 : .75,
+                      childAspectRatio: columns == 1 ? 1.1 : .78,
                     ),
-                    delegate: SliverChildBuilderDelegate((_, index) {
-                      final item = _items[index];
-                      return _DestinationCard(
-                        item: item,
-                        saved: _savedIds.contains(_id(item)),
-                        onSave: () => _toggleSaved(item),
-                        onTap: () => context.push('/destinations/${_id(item)}'),
-                      );
-                    }, childCount: _items.length),
+                    delegate: SliverChildBuilderDelegate(
+                      (_, index) {
+                        final item = _items[index];
+                        return _DestinationCard(
+                          item: item,
+                          saved: _savedIds.contains(_id(item)),
+                          onSave: () => _toggleSaved(item),
+                          onTap: () => context.push('/destinations/${_id(item)}'),
+                        );
+                      },
+                      childCount: _items.length,
+                    ),
                   );
                 },
               ),
             ),
+
+          // Pagination
           if (!_loading && _error == null && _totalPages > 1)
             SliverToBoxAdapter(
               child: _Pagination(
@@ -334,7 +325,7 @@ class _DestinationsScreenState extends ConsumerState<DestinationsScreen> {
                 onChanged: (page) => _apply(page: page),
               ),
             ),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     ),
@@ -347,8 +338,10 @@ class _DestinationsScreenState extends ConsumerState<DestinationsScreen> {
   }
 }
 
-class _Hero extends StatelessWidget {
-  const _Hero({
+// ─── Hero ─────────────────────────────────────────────────────────────────────
+
+class _DestinationHero extends StatelessWidget {
+  const _DestinationHero({
     required this.image,
     required this.controller,
     required this.onSearch,
@@ -356,77 +349,106 @@ class _Hero extends StatelessWidget {
   final String image;
   final TextEditingController controller;
   final VoidCallback onSearch;
+
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 330,
+    height: 310,
     child: Stack(
       fit: StackFit.expand,
       children: [
         CachedNetworkImage(imageUrl: image, fit: BoxFit.cover),
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0x660F172A), Color(0xCC0F172A)],
+        const AppHeroOverlay(),
+        // Back button
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  Material(
+                    color: Colors.black45,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => context.canPop() ? context.pop() : null,
+                      child: const Padding(
+                        padding: EdgeInsets.all(10),
+                        child: Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 42, 20, 22),
+        // Text + search
+        Positioned(
+          left: 20,
+          right: 20,
+          bottom: 24,
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.end,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Explore Destinations',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 31,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -.7,
-                ),
+              Text(
+                'Explore\nDestinations',
+                style: AppTextStyles.h1White.copyWith(fontSize: 34),
               ),
-              const SizedBox(height: 7),
-              const Text(
-                'Find your next adventure from around the world',
-                style: TextStyle(color: Color(0xFFE2E8F0), fontSize: 15),
+              const SizedBox(height: 6),
+              Text(
+                'Discover your next great adventure',
+                style: AppTextStyles.bodySmallWhite,
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 18),
+              // Search bar
               Container(
-                padding: const EdgeInsets.all(7),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: const [
+                  boxShadow: [
                     BoxShadow(
-                      color: Color(0x330F172A),
-                      blurRadius: 24,
-                      offset: Offset(0, 10),
+                      color: Colors.black.withValues(alpha: .2),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
                     ),
                   ],
                 ),
                 child: Row(
                   children: [
                     const SizedBox(width: 10),
-                    const Icon(Icons.search, color: Color(0xFF0891B2)),
-                    const SizedBox(width: 8),
+                    const Icon(Icons.search_rounded, color: AppColors.muted, size: 20),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: TextField(
                         controller: controller,
                         textInputAction: TextInputAction.search,
                         onSubmitted: (_) => onSearch(),
-                        decoration: const InputDecoration.collapsed(
+                        style: AppTextStyles.body,
+                        decoration: InputDecoration(
                           hintText: 'Search destinations…',
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          filled: false,
+                          contentPadding: EdgeInsets.zero,
+                          hintStyle: AppTextStyles.body.copyWith(color: AppColors.subtle),
                         ),
                       ),
                     ),
-                    IconButton.filled(
+                    FilledButton(
                       onPressed: onSearch,
-                      style: IconButton.styleFrom(
-                        backgroundColor: const Color(0xFF0891B2),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(50, 42),
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      icon: const Icon(Icons.arrow_forward),
+                      child: const Icon(Icons.arrow_forward_rounded, size: 18),
                     ),
                   ],
                 ),
@@ -439,36 +461,7 @@ class _Hero extends StatelessWidget {
   );
 }
 
-class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(right: 9),
-    child: ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      showCheckmark: false,
-      selectedColor: const Color(0xFF0891B2),
-      backgroundColor: Colors.white,
-      side: BorderSide(
-        color: selected ? const Color(0xFF0891B2) : const Color(0xFFE2E8F0),
-      ),
-      labelStyle: TextStyle(
-        color: selected ? Colors.white : const Color(0xFF334155),
-        fontWeight: FontWeight.w700,
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-    ),
-  );
-}
+// ─── Destination Card ─────────────────────────────────────────────────────────
 
 class _DestinationCard extends StatelessWidget {
   const _DestinationCard({
@@ -480,6 +473,7 @@ class _DestinationCard extends StatelessWidget {
   final Map<String, dynamic> item;
   final bool saved;
   final VoidCallback onSave, onTap;
+
   @override
   Widget build(BuildContext context) {
     final image = AppConfig.assetUrl(_image(item));
@@ -489,18 +483,13 @@ class _DestinationCard extends StatelessWidget {
     final category = categoryRaw is Map
         ? '${categoryRaw['name'] ?? 'Destination'}'
         : '${categoryRaw ?? item['category_name'] ?? 'Destination'}';
-    final region = '${item['region'] ?? item['address'] ?? 'Vietnam'}';
-    final rating =
-        double.tryParse('${item['average_rating'] ?? item['rating'] ?? 0}') ??
-        0;
+    final rating = double.tryParse('${item['average_rating'] ?? item['rating'] ?? 0}') ?? 0;
     final reviews = item['reviews_count'] ?? item['review_count'] ?? 0;
-    final price =
-        num.tryParse('${item['price_from'] ?? item['min_price'] ?? 0}') ?? 0;
+    final price = num.tryParse('${item['price_from'] ?? item['min_price'] ?? 0}') ?? 0;
+
     return Material(
       color: Colors.white,
-      elevation: 1,
-      shadowColor: const Color(0x220F172A),
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -512,160 +501,99 @@ class _DestinationCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   image.isEmpty
-                      ? const ColoredBox(
-                          color: Color(0xFFE2E8F0),
-                          child: Icon(Icons.landscape_outlined, size: 54),
+                      ? ColoredBox(
+                          color: AppColors.borderLight,
+                          child: const Icon(Icons.landscape_outlined, size: 54, color: AppColors.subtle),
                         )
                       : CachedNetworkImage(
                           imageUrl: image,
                           fit: BoxFit.cover,
-                          placeholder: (_, _) =>
-                              const ColoredBox(color: Color(0xFFE2E8F0)),
+                          placeholder: (_, _) => const ColoredBox(color: AppColors.borderLight),
                           errorWidget: (_, _, _) => const ColoredBox(
-                            color: Color(0xFFE2E8F0),
-                            child: Icon(Icons.broken_image_outlined),
+                            color: AppColors.borderLight,
+                            child: Icon(Icons.broken_image_outlined, color: AppColors.subtle),
                           ),
                         ),
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Color(0x44000000)],
+                  // Bottom gradient
+                  const Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Color(0x55000000)],
+                          stops: [0.5, 1],
+                        ),
                       ),
                     ),
                   ),
+                  // Save button
                   Positioned(
-                    top: 12,
-                    right: 12,
+                    top: 10,
+                    right: 10,
                     child: Material(
-                      color: Colors.white.withValues(alpha: .94),
-                      shape: const CircleBorder(),
-                      child: IconButton(
-                        onPressed: onSave,
-                        icon: Icon(
-                          saved ? Icons.favorite : Icons.favorite_border,
-                          color: saved
-                              ? const Color(0xFFE11D48)
-                              : const Color(0xFF334155),
-                        ),
-                        iconSize: 21,
-                      ),
-                    ),
-                  ),
-                  if (item['badge'] != null)
-                    Positioned(
-                      left: 12,
-                      top: 12,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0891B2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '${item['badge']}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                      color: Colors.black.withValues(alpha: .35),
+                      borderRadius: BorderRadius.circular(10),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: onSave,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Icon(
+                            saved ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                            color: saved ? const Color(0xFFFF4D6D) : Colors.white,
+                            size: 18,
                           ),
                         ),
                       ),
                     ),
+                  ),
+                  // Category badge
+                  Positioned(
+                    left: 10,
+                    top: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.black45,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        category,
+                        style: AppTextStyles.caption.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(15),
+              padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '$name, $country',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F172A),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '$category · $region',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF64748B),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (price > 0)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            const Text(
-                              'from',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Color(0xFF94A3B8),
-                              ),
-                            ),
-                            Text(
-                              NumberFormat.compactCurrency(
-                                locale: 'vi_VN',
-                                symbol: '₫',
-                              ).format(price),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                    ],
+                  Text(
+                    '$name, $country',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.h4,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(
-                        Icons.star_rounded,
-                        color: Color(0xFFFBBF24),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        rating > 0 ? rating.toStringAsFixed(1) : 'New',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        '($reviews reviews)',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
+                      AppRatingRow(rating: rating, count: reviews as int),
                       const Spacer(),
-                      const Icon(
-                        Icons.arrow_forward,
-                        size: 18,
-                        color: Color(0xFF0891B2),
-                      ),
+                      if (price > 0)
+                        Text(
+                          NumberFormat.compactCurrency(
+                            locale: 'vi_VN',
+                            symbol: '₫',
+                          ).format(price),
+                          style: AppTextStyles.label.copyWith(color: AppColors.brand),
+                        ),
                     ],
                   ),
                 ],
@@ -678,8 +606,9 @@ class _DestinationCard extends StatelessWidget {
   }
 }
 
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
 class _DestinationSkeleton extends StatelessWidget {
-  const _DestinationSkeleton();
   @override
   Widget build(BuildContext context) => SliverLayoutBuilder(
     builder: (_, constraints) {
@@ -689,16 +618,16 @@ class _DestinationSkeleton extends StatelessWidget {
           crossAxisCount: columns,
           mainAxisSpacing: 16,
           crossAxisSpacing: 16,
-          childAspectRatio: columns == 1 ? 1.04 : .75,
+          childAspectRatio: columns == 1 ? 1.1 : .78,
         ),
         delegate: SliverChildBuilderDelegate(
           (_, _) => Shimmer.fromColors(
-            baseColor: const Color(0xFFE2E8F0),
-            highlightColor: const Color(0xFFF8FAFC),
+            baseColor: const Color(0xFFE5E7EB),
+            highlightColor: const Color(0xFFF9FAFB),
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(20),
               ),
             ),
           ),
@@ -709,82 +638,63 @@ class _DestinationSkeleton extends StatelessWidget {
   );
 }
 
-class _ErrorCard extends StatelessWidget {
-  const _ErrorCard({required this.message, required this.retry});
-  final String message;
-  final VoidCallback retry;
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFFF1F2),
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: Row(
-      children: [
-        const Icon(Icons.error_outline, color: Color(0xFFBE123C)),
-        const SizedBox(width: 12),
-        Expanded(child: Text(message)),
-        TextButton(onPressed: retry, child: const Text('Retry')),
-      ],
-    ),
-  );
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-  @override
-  Widget build(BuildContext context) => const SizedBox(
-    height: 260,
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.travel_explore, size: 58, color: Color(0xFF94A3B8)),
-        SizedBox(height: 12),
-        Text(
-          'No destinations found',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-        SizedBox(height: 5),
-        Text(
-          'Try another search or category.',
-          style: TextStyle(color: Color(0xFF64748B)),
-        ),
-      ],
-    ),
-  );
-}
+// ─── Pagination ───────────────────────────────────────────────────────────────
 
 class _Pagination extends StatelessWidget {
-  const _Pagination({
-    required this.page,
-    required this.totalPages,
-    required this.onChanged,
-  });
+  const _Pagination({required this.page, required this.totalPages, required this.onChanged});
   final int page, totalPages;
   final ValueChanged<int> onChanged;
+
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
     child: Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        IconButton.outlined(
-          onPressed: page > 1 ? () => onChanged(page - 1) : null,
-          icon: const Icon(Icons.chevron_left),
+        _PaginationBtn(
+          icon: Icons.chevron_left_rounded,
+          enabled: page > 1,
+          onTap: () => onChanged(page - 1),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
             '$page / $totalPages',
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            style: AppTextStyles.label,
           ),
         ),
-        IconButton.outlined(
-          onPressed: page < totalPages ? () => onChanged(page + 1) : null,
-          icon: const Icon(Icons.chevron_right),
+        _PaginationBtn(
+          icon: Icons.chevron_right_rounded,
+          enabled: page < totalPages,
+          onTap: () => onChanged(page + 1),
         ),
       ],
+    ),
+  );
+}
+
+class _PaginationBtn extends StatelessWidget {
+  const _PaginationBtn({required this.icon, required this.enabled, required this.onTap});
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: enabled ? Colors.white : AppColors.borderLight,
+    borderRadius: BorderRadius.circular(12),
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: enabled ? onTap : null,
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Icon(
+          icon,
+          color: enabled ? AppColors.ink : AppColors.subtle,
+          size: 22,
+        ),
+      ),
     ),
   );
 }
@@ -795,7 +705,4 @@ int _id(Map item) =>
     ) ??
     0;
 String? _image(Map item) =>
-    item['thumbnail_url'] ??
-    item['thumbnail'] ??
-    item['image_url'] ??
-    item['image'];
+    item['thumbnail_url'] ?? item['thumbnail'] ?? item['image_url'] ?? item['image'];
