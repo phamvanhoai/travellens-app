@@ -26,17 +26,19 @@ class AccountScreen extends ConsumerWidget {
             backgroundColor: Colors.white,
           ),
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 92),
             sliver: SliverList.list(
               children: [
                 // Profile Header
-                if (isLoggedIn) _ProfileHeader(name: name, email: email)
-                else _GuestHeader(),
-                const SizedBox(height: 28),
+                if (isLoggedIn)
+                  _ProfileHeader(name: name, email: email)
+                else
+                  _GuestHeader(),
+                const SizedBox(height: 20),
 
                 // Journeys section
-                Text('Your journeys', style: AppTextStyles.h3),
-                const SizedBox(height: 14),
+                const _SectionTitle('Your journeys'),
+                const SizedBox(height: 9),
                 _MenuGroup(
                   items: [
                     _MenuItem(
@@ -67,9 +69,9 @@ class AccountScreen extends ConsumerWidget {
                 ),
 
                 if (isLoggedIn) ...[
-                  const SizedBox(height: 28),
-                  Text('Community & planning', style: AppTextStyles.h3),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 20),
+                  const _SectionTitle('Community & planning'),
+                  const SizedBox(height: 9),
                   _MenuGroup(
                     items: [
                       _MenuItem(
@@ -106,7 +108,7 @@ class AccountScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 20),
 
                   // Sign out
                   OutlinedButton.icon(
@@ -118,12 +120,13 @@ class AccountScreen extends ConsumerWidget {
                       foregroundColor: AppColors.error,
                       side: const BorderSide(color: Color(0xFFFECACA)),
                       backgroundColor: AppColors.errorSoft,
+                      minimumSize: const Size(0, 44),
                     ),
                     icon: const Icon(Icons.logout_rounded, size: 18),
                     label: const Text('Sign out'),
                   ),
                 ] else ...[
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 20),
                   _SignInPrompt(),
                 ],
               ],
@@ -143,20 +146,19 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Builder(
       builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(16),
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF065F52), Color(0xFF0A7E6E), Color(0xFF0891B2)],
-            stops: [0, 0.5, 1],
+            colors: AppColors.brandGradient,
           ),
           boxShadow: [
             BoxShadow(
               color: AppColors.brand.withValues(alpha: .25),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
@@ -164,27 +166,31 @@ class _ProfileHeader extends StatelessWidget {
           children: [
             // Avatar
             Container(
-              width: 64,
-              height: 64,
+              width: 50,
+              height: 50,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: .15),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                    blurRadius: 7,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
               child: Center(
                 child: Text(
                   name.characters.first.toUpperCase(),
-                  style: AppTextStyles.h2.copyWith(color: AppColors.brand),
+                  style: const TextStyle(
+                    color: AppColors.brand,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,33 +199,38 @@ class _ProfileHeader extends StatelessWidget {
                     'WELCOME BACK',
                     style: AppTextStyles.labelSmall.copyWith(
                       color: Colors.white.withValues(alpha: .7),
-                      letterSpacing: 1.4,
+                      fontSize: 8,
+                      letterSpacing: 1.1,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.h3White,
+                    style: AppTextStyles.h3White.copyWith(fontSize: 15),
                   ),
                   if (email.isNotEmpty)
                     Text(
                       email,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.bodySmallWhite,
+                      style: AppTextStyles.bodySmallWhite.copyWith(
+                        fontSize: 10,
+                      ),
                     ),
                 ],
               ),
             ),
             IconButton(
               onPressed: () => context.push('/profile'),
-              icon: const Icon(Icons.edit_outlined, size: 18),
+              icon: const Icon(Icons.edit_outlined, size: 16),
               style: IconButton.styleFrom(
                 backgroundColor: Colors.white.withValues(alpha: .15),
                 foregroundColor: Colors.white,
-                minimumSize: const Size(40, 40),
+                minimumSize: const Size(34, 34),
+                maximumSize: const Size(34, 34),
+                padding: EdgeInsets.zero,
               ),
             ),
           ],
@@ -233,16 +244,20 @@ class _GuestHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: [
-          const Icon(Icons.person_outline_rounded, size: 48, color: AppColors.subtle),
-          const SizedBox(height: 12),
+          const Icon(
+            Icons.person_outline_rounded,
+            size: 40,
+            color: AppColors.subtle,
+          ),
+          const SizedBox(height: 10),
           Text('Welcome to TravelLens', style: AppTextStyles.h4),
           const SizedBox(height: 6),
           Text(
@@ -250,10 +265,12 @@ class _GuestHeader extends StatelessWidget {
             style: AppTextStyles.bodySmall,
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           FilledButton(
             onPressed: () => context.push('/login'),
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(44),
+            ),
             child: const Text('Sign in'),
           ),
         ],
@@ -266,16 +283,20 @@ class _SignInPrompt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.brand.withValues(alpha: .05),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.brand.withValues(alpha: .15)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.lock_outline_rounded, color: AppColors.brand, size: 24),
-          const SizedBox(width: 14),
+          const Icon(
+            Icons.lock_outline_rounded,
+            color: AppColors.brand,
+            size: 24,
+          ),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -303,13 +324,13 @@ class _MenuGroup extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(14),
       border: Border.all(color: AppColors.border),
       boxShadow: [
         BoxShadow(
           color: AppColors.dark.withValues(alpha: .04),
-          blurRadius: 12,
-          offset: const Offset(0, 4),
+          blurRadius: 8,
+          offset: const Offset(0, 3),
         ),
       ],
     ),
@@ -318,8 +339,7 @@ class _MenuGroup extends StatelessWidget {
       children: [
         for (var i = 0; i < items.length; i++) ...[
           _MenuRow(item: items[i]),
-          if (i < items.length - 1)
-            const Divider(height: 1, indent: 72),
+          if (i < items.length - 1) const Divider(height: 1, indent: 58),
         ],
       ],
     ),
@@ -334,32 +354,40 @@ class _MenuRow extends StatelessWidget {
   Widget build(BuildContext context) => InkWell(
     onTap: () => context.push(item.path),
     child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       child: Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: item.soft,
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(item.icon, color: item.color, size: 20),
+            child: Icon(item.icon, color: item.color, size: 18),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.title, style: AppTextStyles.label),
-                const SizedBox(height: 2),
-                Text(item.subtitle, style: AppTextStyles.caption),
+                Text(
+                  item.title,
+                  style: AppTextStyles.label.copyWith(fontSize: 12),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  item.subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.caption.copyWith(fontSize: 9.5),
+                ),
               ],
             ),
           ),
           Icon(
             Icons.arrow_forward_ios_rounded,
-            size: 13,
+            size: 12,
             color: AppColors.subtle,
           ),
         ],
@@ -380,4 +408,19 @@ class _MenuItem {
   final String title, subtitle, path;
   final IconData icon;
   final Color color, soft;
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.label);
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    label,
+    style: const TextStyle(
+      color: AppColors.ink,
+      fontSize: 13,
+      fontWeight: FontWeight.w800,
+    ),
+  );
 }

@@ -457,6 +457,64 @@ class _BookingReviewDialogState extends State<_BookingReviewDialog> {
   );
 }
 
+class _BookingSkeleton extends StatelessWidget {
+  const _BookingSkeleton();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 116,
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(13),
+      border: Border.all(color: AppColors.borderLight),
+    ),
+    child: const Column(
+      children: [
+        Row(
+          children: [
+            AppShimmerBox(width: 72, height: 10, borderRadius: 5),
+            Spacer(),
+            AppShimmerBox(width: 68, height: 20, borderRadius: 10),
+          ],
+        ),
+        SizedBox(height: 8),
+        Row(
+          children: [
+            AppShimmerBox(width: 72, height: 64, borderRadius: 9),
+            SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppShimmerBox(
+                    width: double.infinity,
+                    height: 12,
+                    borderRadius: 6,
+                  ),
+                  SizedBox(height: 9),
+                  AppShimmerBox(width: 94, height: 9, borderRadius: 5),
+                  SizedBox(height: 7),
+                  AppShimmerBox(width: 58, height: 9, borderRadius: 5),
+                ],
+              ),
+            ),
+            SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                AppShimmerBox(width: 66, height: 11, borderRadius: 5),
+                SizedBox(height: 10),
+                AppShimmerBox(width: 58, height: 26, borderRadius: 8),
+              ],
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
 class _BookingPagination extends StatelessWidget {
   const _BookingPagination({
     required this.page,

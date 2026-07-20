@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../core/network/api_client.dart';
 import '../design/app_colors.dart';
+import '../design/app_widgets.dart';
 
 class PaymentHistoryScreen extends ConsumerStatefulWidget {
   const PaymentHistoryScreen({super.key});
@@ -217,10 +218,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             if (_error != null)
               _ErrorCard(message: _error!, onRetry: _load)
             else if (_loading)
-              const SizedBox(
-                height: 320,
-                child: Center(child: CircularProgressIndicator()),
-              )
+              ...List.generate(5, (_) => const _PaymentSkeleton())
             else if (_items.isEmpty)
               const _EmptyPayments()
             else ...[
@@ -524,6 +522,58 @@ class _PageButton extends StatelessWidget {
         padding: EdgeInsets.zero,
       ),
       child: Icon(icon, size: 17),
+    ),
+  );
+}
+
+class _PaymentSkeleton extends StatelessWidget {
+  const _PaymentSkeleton();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 174,
+    margin: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: AppColors.border),
+    ),
+    child: const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            AppShimmerBox(width: 38, height: 38, borderRadius: 10),
+            SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppShimmerBox(width: 112, height: 12, borderRadius: 6),
+                  SizedBox(height: 7),
+                  AppShimmerBox(width: 90, height: 9, borderRadius: 5),
+                ],
+              ),
+            ),
+            AppShimmerBox(width: 72, height: 22, borderRadius: 11),
+          ],
+        ),
+        SizedBox(height: 13),
+        AppShimmerBox(width: 210, height: 12, borderRadius: 6),
+        SizedBox(height: 14),
+        Divider(height: 1, color: AppColors.borderLight),
+        SizedBox(height: 12),
+        Row(
+          children: [
+            AppShimmerBox(width: 105, height: 10, borderRadius: 5),
+            Spacer(),
+            AppShimmerBox(width: 92, height: 14, borderRadius: 6),
+          ],
+        ),
+        SizedBox(height: 12),
+        AppShimmerBox(width: 166, height: 10, borderRadius: 5),
+      ],
     ),
   );
 }

@@ -8,11 +8,13 @@ class AuthState {
     this.user,
     this.loading = false,
     this.error,
+    this.requiresEmailVerification = false,
   });
   final bool ready;
   final Map<String, dynamic>? user;
   final bool loading;
   final String? error;
+  final bool requiresEmailVerification;
   bool get authenticated => user != null;
 }
 
@@ -72,9 +74,29 @@ class AuthController extends Notifier<AuthState> {
       state = AuthState(ready: true, user: user);
       return true;
     } catch (e) {
-      state = AuthState(ready: true, error: apiError(e));
+      final message = apiError(e);
+      state = AuthState(
+        ready: true,
+        error: message,
+        requiresEmailVerification: _requiresVerification(e, message),
+      );
       return false;
     }
+  }
+
+  bool _requiresVerification(Object error, String message) {
+    dynamic data;
+    if (error is DioException) data = error.response?.data;
+    final raw = data is Map
+        ? '${data['code'] ?? ''} ${data['error'] ?? ''} ${data['message'] ?? ''}'
+        : '$data';
+    final text = '$raw $message'.toLowerCase();
+    return text.contains('verify') ||
+        text.contains('verification') ||
+        text.contains('unverified') ||
+        text.contains('not verified') ||
+        text.contains('otp') ||
+        text.contains('chưa xác thực');
   }
 
   Future<bool> register(String name, String email, String password) async {
@@ -89,6 +111,18 @@ class AuthController extends Notifier<AuthState> {
           'confirm_password': password,
         },
       );
+      state = const AuthState(ready: true);
+      return true;
+    } catch (e) {
+      state = AuthState(ready: true, error: apiError(e));
+      return false;
+    }
+  }
+
+  Future<bool> verifyEmail(String email, String otp) async {
+    state = const AuthState(ready: true, loading: true);
+    try {
+      await _dio.post('/auth/verify-email', data: {'email': email, 'otp': otp});
       state = const AuthState(ready: true);
       return true;
     } catch (e) {
