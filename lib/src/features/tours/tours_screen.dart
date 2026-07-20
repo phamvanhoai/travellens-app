@@ -10,6 +10,8 @@ import '../../core/network/api_client.dart';
 import '../../design/app_colors.dart';
 import '../../design/app_text_styles.dart';
 import '../../design/app_widgets.dart';
+import '../auth/auth_controller.dart';
+import 'saved_tours_controller.dart';
 
 class ToursScreen extends ConsumerStatefulWidget {
   const ToursScreen({super.key});
@@ -234,7 +236,7 @@ class _ToursScreenState extends ConsumerState<ToursScreen> {
               sliver: SliverList.separated(
                 itemCount: tours.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (_, index) => _TourCard(tour: tours[index]),
+                itemBuilder: (_, index) => _LargeTourCard(tour: tours[index]),
               ),
             ),
         ],
@@ -398,6 +400,300 @@ class _TourCard extends StatelessWidget {
 
 double _tourNumber(dynamic value) => double.tryParse('${value ?? 0}') ?? 0;
 
+class _LargeTourCard extends ConsumerStatefulWidget {
+  const _LargeTourCard({required this.tour});
+  final Map<String, dynamic> tour;
+
+  @override
+  ConsumerState<_LargeTourCard> createState() => _LargeTourCardState();
+}
+
+class _LargeTourCardState extends ConsumerState<_LargeTourCard> {
+  bool _saving = false;
+
+  Map<String, dynamic> get tour => widget.tour;
+
+  Future<void> _toggleSaved(int id) async {
+    if (!ref.read(authProvider).authenticated) {
+      context.push('/login');
+      return;
+    }
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await ref.read(savedToursProvider.notifier).toggle(id);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiError(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final id = int.tryParse('${tour['tour_id'] ?? tour['id'] ?? 0}') ?? 0;
+    final saved = ref.watch(savedToursProvider).contains(id);
+    final rawImage =
+        '${tour['thumbnail_url'] ?? tour['image_url'] ?? tour['thumbnail'] ?? ''}';
+    final image = rawImage.isEmpty ? '' : AppConfig.assetUrl(rawImage);
+    final name = '${tour['name'] ?? tour['title'] ?? 'Tour trải nghiệm'}';
+    final destination = _tourDestination(tour);
+    final price = _tourNumber(tour['price'] ?? tour['base_price']);
+    final rating = _tourNumber(tour['average_rating'] ?? tour['rating']);
+    final reviews = _tourInt(tour['review_count'] ?? tour['reviews_count']);
+    final days = _tourInt(tour['duration_days']);
+    final nights = _tourInt(tour['duration_nights']);
+    final duration = days > 0
+        ? nights > 0
+              ? '$days ngày $nights đêm'
+              : '$days ngày'
+        : '${tour['duration'] ?? tour['schedule'] ?? 'Trong ngày'}';
+    final capacity = _tourInt(tour['available_slots'] ?? tour['capacity']);
+    final category = tour['tour_category'] is Map
+        ? '${tour['tour_category']['name'] ?? ''}'
+        : '${tour['category_name'] ?? tour['badge'] ?? ''}';
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: () => context.push('/tours/$id'),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0D0F172A),
+                blurRadius: 14,
+                offset: Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                height: 200,
+                width: double.infinity,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (image.isEmpty)
+                      const ColoredBox(
+                        color: AppColors.borderLight,
+                        child: Icon(
+                          Icons.landscape_rounded,
+                          size: 48,
+                          color: AppColors.subtle,
+                        ),
+                      )
+                    else
+                      CachedNetworkImage(imageUrl: image, fit: BoxFit.cover),
+                    if (category.isNotEmpty)
+                      Positioned(
+                        left: 12,
+                        top: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF97316),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Text(
+                            category,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    Positioned(
+                      right: 12,
+                      top: 12,
+                      child: SizedBox(
+                        width: 38,
+                        height: 38,
+                        child: Material(
+                          color: Colors.white,
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: () => _toggleSaved(id),
+                            child: _saving
+                                ? const Padding(
+                                    padding: EdgeInsets.all(11),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Icon(
+                                    saved
+                                        ? Icons.favorite_rounded
+                                        : Icons.favorite_border_rounded,
+                                    size: 20,
+                                    color: saved
+                                        ? AppColors.error
+                                        : AppColors.ink,
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(15),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        height: 1.25,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    if (destination.isNotEmpty) ...[
+                      const SizedBox(height: 7),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on_outlined,
+                            size: 16,
+                            color: AppColors.muted,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              destination,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.caption,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 13),
+                    Wrap(
+                      spacing: 15,
+                      runSpacing: 8,
+                      children: [
+                        _TourMeta(icon: Icons.schedule_rounded, text: duration),
+                        if (capacity > 0)
+                          _TourMeta(
+                            icon: Icons.groups_outlined,
+                            text: '$capacity người',
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 17),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Icon(
+                          Icons.star_rounded,
+                          size: 18,
+                          color: AppColors.gold,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          rating > 0 ? rating.toStringAsFixed(1) : 'Mới',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (reviews > 0)
+                          Text(' ($reviews)', style: AppTextStyles.caption),
+                        const Spacer(),
+                        if (price > 0)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              const Text(
+                                'Giá từ',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.muted,
+                                ),
+                              ),
+                              Text(
+                                '${NumberFormat.decimalPattern('vi').format(price)}đ',
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.ink,
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TourMeta extends StatelessWidget {
+  const _TourMeta({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 15, color: AppColors.muted),
+      const SizedBox(width: 5),
+      Text(text, style: AppTextStyles.caption),
+    ],
+  );
+}
+
+int _tourInt(dynamic value) =>
+    int.tryParse('${value ?? 0}') ?? _tourNumber(value).round();
+
+String _tourDestination(Map<String, dynamic> tour) {
+  final direct = tour['destination'];
+  if (direct is Map) return '${direct['name'] ?? direct['title'] ?? ''}';
+  final items = tour['destinations'] ?? tour['tour_destinations'];
+  if (items is List) {
+    return items
+        .map(
+          (item) =>
+              item is Map ? '${item['name'] ?? item['title'] ?? ''}' : '$item',
+        )
+        .where((item) => item.isNotEmpty)
+        .join(' • ');
+  }
+  return '${tour['destination_name'] ?? direct ?? ''}';
+}
+
 class _TourSkeleton extends StatelessWidget {
   const _TourSkeleton();
   @override
@@ -408,7 +704,7 @@ class _TourSkeleton extends StatelessWidget {
       baseColor: const Color(0xFFE9EAED),
       highlightColor: const Color(0xFFF8F8F9),
       child: Container(
-        height: 124,
+        height: 350,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(13),

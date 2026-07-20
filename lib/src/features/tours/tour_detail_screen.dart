@@ -10,6 +10,7 @@ import '../../core/network/api_client.dart';
 import '../../design/app_colors.dart';
 import '../../design/app_widgets.dart';
 import '../auth/auth_controller.dart';
+import 'saved_tours_controller.dart';
 
 class TourDetailScreen extends ConsumerStatefulWidget {
   const TourDetailScreen({super.key, required this.id});
@@ -33,7 +34,7 @@ class _TourDetailScreenState extends ConsumerState<TourDetailScreen>
   late final TabController _tabs;
   Map<String, dynamic>? _tour;
   List<Map<String, dynamic>> _reviews = [];
-  bool _loading = true, _saved = false, _saving = false;
+  bool _loading = true, _saving = false;
   String? _error;
 
   @override
@@ -84,21 +85,11 @@ class _TourDetailScreenState extends ConsumerState<TourDetailScreen>
         _tour = tour;
         _reviews = reviews;
       });
-      _loadSaved();
     } catch (e) {
       if (mounted) setState(() => _error = apiError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  Future<void> _loadSaved() async {
-    if (!ref.read(authProvider).authenticated) return;
-    try {
-      final r = await ref.read(dioProvider).get('/saved/ids');
-      final ids = _findIds(unwrap(r.data));
-      if (mounted) setState(() => _saved = ids.contains(widget.id));
-    } catch (_) {}
   }
 
   Future<void> _toggleSaved() async {
@@ -109,8 +100,7 @@ class _TourDetailScreenState extends ConsumerState<TourDetailScreen>
     if (_saving) return;
     setState(() => _saving = true);
     try {
-      await ref.read(dioProvider).post('/saved/tours/${widget.id}/toggle');
-      if (mounted) setState(() => _saved = !_saved);
+      await ref.read(savedToursProvider.notifier).toggle(widget.id);
     } catch (e) {
       if (mounted)
         ScaffoldMessenger.of(
@@ -141,6 +131,7 @@ class _TourDetailScreenState extends ConsumerState<TourDetailScreen>
     final price = _number(t['price']);
     final rating = _number(t['average_rating'] ?? t['rating']);
     final count = _int(t['review_count'] ?? t['reviews_count']);
+    final saved = ref.watch(savedToursProvider).contains(widget.id);
     final places = _records(
       t['destinations'] ?? t['travel_destinations'] ?? t['tour_destinations'],
     );
@@ -178,10 +169,10 @@ class _TourDetailScreenState extends ConsumerState<TourDetailScreen>
           ),
           const SizedBox(width: 8),
           _CircleButton(
-            icon: _saved
+            icon: saved
                 ? Icons.favorite_rounded
                 : Icons.favorite_border_rounded,
-            color: _saved ? Colors.red : null,
+            color: saved ? Colors.red : null,
             onTap: _toggleSaved,
           ),
           const SizedBox(width: 12),
@@ -252,7 +243,11 @@ class _TourDetailScreenState extends ConsumerState<TourDetailScreen>
             ),
           ),
           SliverToBoxAdapter(
-            child: Padding(
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              ),
               padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,7 +255,7 @@ class _TourDetailScreenState extends ConsumerState<TourDetailScreen>
                   Text(
                     name,
                     style: const TextStyle(
-                      fontSize: 23,
+                      fontSize: 20,
                       height: 1.2,
                       fontWeight: FontWeight.w800,
                       color: Color(0xff17202a),
@@ -271,7 +266,7 @@ class _TourDetailScreenState extends ConsumerState<TourDetailScreen>
                     children: [
                       const Icon(
                         Icons.location_on_outlined,
-                        size: 18,
+                        size: 16,
                         color: AppColors.brand,
                       ),
                       const SizedBox(width: 4),
@@ -291,13 +286,13 @@ class _TourDetailScreenState extends ConsumerState<TourDetailScreen>
                       if (rating > 0) ...[
                         const Icon(
                           Icons.star_rounded,
-                          size: 18,
+                          size: 16,
                           color: Color(0xffffb020),
                         ),
                         Text(
                           ' ${rating.toStringAsFixed(1)} ($count)',
                           style: const TextStyle(
-                            fontSize: 13,
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -306,7 +301,7 @@ class _TourDetailScreenState extends ConsumerState<TourDetailScreen>
                   ),
                   const SizedBox(height: 16),
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
                       color: const Color(0xfff6f8fb),
                       borderRadius: BorderRadius.circular(14),
@@ -335,12 +330,12 @@ class _TourDetailScreenState extends ConsumerState<TourDetailScreen>
                   const SizedBox(height: 15),
                   const Text(
                     'Giá từ',
-                    style: TextStyle(fontSize: 12, color: Color(0xff64748b)),
+                    style: TextStyle(fontSize: 11, color: Color(0xff64748b)),
                   ),
                   Text(
                     '${NumberFormat('#,###', 'vi_VN').format(price)}đ / người',
                     style: const TextStyle(
-                      fontSize: 21,
+                      fontSize: 19,
                       fontWeight: FontWeight.w800,
                       color: AppColors.brand,
                     ),
@@ -349,7 +344,7 @@ class _TourDetailScreenState extends ConsumerState<TourDetailScreen>
               ),
             ),
           ),
-          SliverPersistentHeader(pinned: true, delegate: _TabsDelegate(_tabs)),
+          SliverToBoxAdapter(child: _TourTabBar(controller: _tabs)),
           SliverToBoxAdapter(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 220),
@@ -365,15 +360,22 @@ class _TourDetailScreenState extends ConsumerState<TourDetailScreen>
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
-          decoration: const BoxDecoration(
+          padding: const EdgeInsets.fromLTRB(18, 10, 18, 12),
+          decoration: BoxDecoration(
             color: Colors.white,
-            border: Border(top: BorderSide(color: Color(0xffe9edf2))),
+            border: const Border(top: BorderSide(color: AppColors.borderLight)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: .04),
+                blurRadius: 14,
+                offset: const Offset(0, -3),
+              ),
+            ],
           ),
           child: Row(
             children: [
               SizedBox(
-                width: 48,
+                width: 50,
                 height: 48,
                 child: OutlinedButton(
                   onPressed: _toggleSaved,
@@ -384,10 +386,10 @@ class _TourDetailScreenState extends ConsumerState<TourDetailScreen>
                     ),
                   ),
                   child: Icon(
-                    _saved
+                    saved
                         ? Icons.favorite_rounded
                         : Icons.favorite_border_rounded,
-                    color: _saved ? Colors.red : AppColors.brand,
+                    color: saved ? Colors.red : AppColors.brand,
                   ),
                 ),
               ),
@@ -451,24 +453,7 @@ class _TourDetailScreenState extends ConsumerState<TourDetailScreen>
         final images = _gallery(t);
         return images.isEmpty
             ? const _Empty('Hình ảnh đang được cập nhật.')
-            : GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: images.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 9,
-                  mainAxisSpacing: 9,
-                  childAspectRatio: 1.25,
-                ),
-                itemBuilder: (_, i) => ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: CachedNetworkImage(
-                    imageUrl: AppConfig.assetUrl(images[i]),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              );
+            : _TourGallery(images: images);
       case 6:
         return _reviews.isEmpty
             ? const _Empty('Chưa có đánh giá nào.')
@@ -486,42 +471,59 @@ class _TourDetailScreenState extends ConsumerState<TourDetailScreen>
   }
 }
 
-class _TabsDelegate extends SliverPersistentHeaderDelegate {
-  _TabsDelegate(this.controller);
+class _TourTabBar extends StatelessWidget {
+  const _TourTabBar({required this.controller});
   final TabController controller;
+
   @override
-  double get minExtent => 58;
-  @override
-  double get maxExtent => 58;
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) => Container(
+  Widget build(BuildContext context) => Container(
+    height: 58,
     color: Colors.white,
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+    padding: const EdgeInsets.fromLTRB(18, 7, 18, 7),
     child: TabBar(
       controller: controller,
       isScrollable: true,
       tabAlignment: TabAlignment.start,
       dividerColor: Colors.transparent,
       labelColor: Colors.white,
-      unselectedLabelColor: const Color(0xff64748b),
-      labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+      unselectedLabelColor: AppColors.muted,
+      labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+      labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+      unselectedLabelStyle: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+      ),
       indicatorSize: TabBarIndicatorSize.tab,
       indicator: BoxDecoration(
         color: AppColors.brand,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(11),
       ),
-      tabs: _TourDetailScreenState._labels
-          .map((e) => Tab(height: 38, text: e))
-          .toList(),
+      tabs: List.generate(
+        _TourDetailScreenState._labels.length,
+        (index) => Tab(
+          height: 44,
+          child: Row(
+            children: [
+              Icon(_tourTabIcons[index], size: 15),
+              const SizedBox(width: 6),
+              Text(_TourDetailScreenState._labels[index]),
+            ],
+          ),
+        ),
+      ),
     ),
   );
-  @override
-  bool shouldRebuild(covariant _TabsDelegate oldDelegate) => false;
 }
+
+const _tourTabIcons = [
+  Icons.info_outline_rounded,
+  Icons.auto_awesome_outlined,
+  Icons.route_outlined,
+  Icons.inventory_2_outlined,
+  Icons.policy_outlined,
+  Icons.photo_library_outlined,
+  Icons.star_outline_rounded,
+];
 
 class _CircleButton extends StatelessWidget {
   const _CircleButton({required this.icon, required this.onTap, this.color});
@@ -605,7 +607,7 @@ class _Sections extends StatelessWidget {
         if (s.$2.isNotEmpty) ...[
           Text(
             s.$1,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 10),
           ...s.$2.map(
@@ -704,6 +706,258 @@ class _Place extends StatelessWidget {
           ),
         ),
       ],
+    ),
+  );
+}
+
+class _TourGallery extends StatelessWidget {
+  const _TourGallery({required this.images});
+  final List<String> images;
+
+  void _open(BuildContext context, int index) {
+    Navigator.of(context, rootNavigator: true).push(
+      PageRouteBuilder<void>(
+        opaque: false,
+        barrierColor: Colors.black,
+        transitionDuration: const Duration(milliseconds: 220),
+        reverseTransitionDuration: const Duration(milliseconds: 180),
+        pageBuilder: (_, animation, __) => FadeTransition(
+          opacity: animation,
+          child: _GalleryViewer(images: images, initialIndex: index),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = images.skip(1).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Thư viện ảnh',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+            ),
+            Text(
+              '${images.length} ảnh',
+              style: const TextStyle(fontSize: 12, color: AppColors.muted),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _GalleryTile(
+          image: images.first,
+          height: 205,
+          borderRadius: 15,
+          onTap: () => _open(context, 0),
+          overlay: images.length > 1 ? '1 / ${images.length}' : null,
+        ),
+        if (remaining.isNotEmpty) ...[
+          const SizedBox(height: 9),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: remaining.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 9,
+              mainAxisSpacing: 9,
+              childAspectRatio: 1.25,
+            ),
+            itemBuilder: (_, index) => _GalleryTile(
+              image: remaining[index],
+              height: double.infinity,
+              borderRadius: 12,
+              onTap: () => _open(context, index + 1),
+              overlay: index == remaining.length - 1 && images.length > 4
+                  ? '${images.length} ảnh'
+                  : null,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _GalleryTile extends StatelessWidget {
+  const _GalleryTile({
+    required this.image,
+    required this.height,
+    required this.borderRadius,
+    required this.onTap,
+    this.overlay,
+  });
+  final String image;
+  final double height;
+  final double borderRadius;
+  final VoidCallback onTap;
+  final String? overlay;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: height,
+    width: double.infinity,
+    child: Material(
+      color: AppColors.borderLight,
+      borderRadius: BorderRadius.circular(borderRadius),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Hero(
+              tag: 'tour-gallery-$image',
+              child: CachedNetworkImage(
+                imageUrl: AppConfig.assetUrl(image),
+                fit: BoxFit.cover,
+                placeholder: (_, _) =>
+                    const ColoredBox(color: AppColors.borderLight),
+                errorWidget: (_, _, _) => const ColoredBox(
+                  color: AppColors.borderLight,
+                  child: Icon(Icons.broken_image_outlined),
+                ),
+              ),
+            ),
+            const Positioned(
+              right: 10,
+              top: 10,
+              child: CircleAvatar(
+                radius: 15,
+                backgroundColor: Color(0x99000000),
+                child: Icon(
+                  Icons.zoom_out_map_rounded,
+                  size: 15,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            if (overlay != null)
+              Positioned(
+                right: 10,
+                bottom: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xAA000000),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    overlay!,
+                    style: const TextStyle(color: Colors.white, fontSize: 11),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _GalleryViewer extends StatefulWidget {
+  const _GalleryViewer({required this.images, required this.initialIndex});
+  final List<String> images;
+  final int initialIndex;
+
+  @override
+  State<_GalleryViewer> createState() => _GalleryViewerState();
+}
+
+class _GalleryViewerState extends State<_GalleryViewer> {
+  late final PageController _controller;
+  late int _index;
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.initialIndex;
+    _controller = PageController(initialPage: _index);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.black,
+    child: SafeArea(
+      child: Stack(
+        children: [
+          PageView.builder(
+            controller: _controller,
+            itemCount: widget.images.length,
+            onPageChanged: (value) => setState(() => _index = value),
+            itemBuilder: (_, index) => Center(
+              child: InteractiveViewer(
+                minScale: 1,
+                maxScale: 4,
+                boundaryMargin: const EdgeInsets.all(40),
+                child: Hero(
+                  tag: 'tour-gallery-${widget.images[index]}',
+                  child: CachedNetworkImage(
+                    imageUrl: AppConfig.assetUrl(widget.images[index]),
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 16,
+            top: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+              decoration: BoxDecoration(
+                color: const Color(0x88000000),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Text(
+                '${_index + 1} / ${widget.images.length}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 12,
+            top: 4,
+            child: IconButton.filledTonal(
+              onPressed: () => Navigator.pop(context),
+              style: IconButton.styleFrom(
+                backgroundColor: const Color(0xAA222222),
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(Icons.close_rounded),
+            ),
+          ),
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 14,
+            child: Text(
+              'Vuốt để xem ảnh khác • Chụm hai ngón tay để phóng to',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white70, fontSize: 11),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -820,29 +1074,4 @@ String _duration(Map<String, dynamic> t) {
   final d = _int(t['duration_days']), n = _int(t['duration_nights']);
   if (d > 0) return n > 0 ? '$d ngày $n đêm' : '$d ngày';
   return _text(t, ['duration'], 'Trong ngày');
-}
-
-Set<int> _findIds(dynamic data) {
-  final result = <int>{};
-  void walk(dynamic v) {
-    if (v is List) {
-      for (final x in v) {
-        if (x is num || x is String) {
-          final id = int.tryParse('$x');
-          if (id != null) result.add(id);
-        } else {
-          walk(x);
-        }
-      }
-    } else if (v is Map) {
-      for (final key in ['tour_ids', 'tours', 'saved_tours']) {
-        if (v[key] != null) walk(v[key]);
-      }
-      final id = int.tryParse('${v['tour_id'] ?? v['id'] ?? ''}');
-      if (id != null) result.add(id);
-    }
-  }
-
-  walk(data);
-  return result;
 }

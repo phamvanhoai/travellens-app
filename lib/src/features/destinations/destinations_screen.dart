@@ -330,7 +330,7 @@ class _DestinationsScreenState extends ConsumerState<DestinationsScreen> {
                   separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (_, index) {
                     final item = _items[index];
-                    return _DestinationListCard(
+                    return _LargeDestinationCard(
                       item: item,
                       saved: savedIds.contains(_id(item)),
                       onSave: () => _toggleSaved(item),
@@ -540,6 +540,238 @@ class _DestinationListCard extends StatelessWidget {
   }
 }
 
+class _LargeDestinationCard extends StatelessWidget {
+  const _LargeDestinationCard({
+    required this.item,
+    required this.saved,
+    required this.onSave,
+    required this.onTap,
+  });
+  final Map<String, dynamic> item;
+  final bool saved;
+  final VoidCallback onSave;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final image = AppConfig.assetUrl(_image(item));
+    final name = '${item['name'] ?? item['title'] ?? 'Điểm đến'}';
+    final country = '${item['country'] ?? item['city'] ?? ''}';
+    final categoryRaw = item['destination_category'] ?? item['category'];
+    final category = categoryRaw is Map
+        ? '${categoryRaw['name'] ?? ''}'
+        : '${item['category_name'] ?? categoryRaw ?? ''}';
+    final region = '${item['region'] ?? item['area'] ?? ''}';
+    final rating =
+        double.tryParse('${item['average_rating'] ?? item['rating'] ?? 0}') ??
+        0;
+    final reviews =
+        int.tryParse('${item['reviews_count'] ?? item['review_count'] ?? 0}') ??
+        0;
+    final price =
+        double.tryParse(
+          '${item['price_from'] ?? item['starting_price'] ?? item['min_price'] ?? 0}',
+        ) ??
+        0;
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0D0F172A),
+                blurRadius: 14,
+                offset: Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: double.infinity,
+                height: 200,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (image.isEmpty)
+                      const ColoredBox(
+                        color: AppColors.borderLight,
+                        child: Icon(
+                          Icons.landscape_outlined,
+                          size: 48,
+                          color: AppColors.subtle,
+                        ),
+                      )
+                    else
+                      CachedNetworkImage(
+                        imageUrl: image,
+                        fit: BoxFit.cover,
+                        placeholder: (_, _) =>
+                            const ColoredBox(color: AppColors.borderLight),
+                        errorWidget: (_, _, _) => const ColoredBox(
+                          color: AppColors.borderLight,
+                          child: Icon(Icons.broken_image_outlined),
+                        ),
+                      ),
+                    if (category.isNotEmpty)
+                      Positioned(
+                        left: 12,
+                        top: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.brand,
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Text(
+                            category,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    Positioned(
+                      right: 12,
+                      top: 12,
+                      child: SizedBox(
+                        width: 38,
+                        height: 38,
+                        child: Material(
+                          color: Colors.white,
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            onTap: onSave,
+                            customBorder: const CircleBorder(),
+                            child: Icon(
+                              saved
+                                  ? Icons.favorite_rounded
+                                  : Icons.favorite_border_rounded,
+                              size: 20,
+                              color: saved
+                                  ? const Color(0xFFFF4D5E)
+                                  : AppColors.ink,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(15),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                country.isEmpty ? name : '$name, $country',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  height: 1.25,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.ink,
+                                ),
+                              ),
+                              if (category.isNotEmpty || region.isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                Text(
+                                  [category, region]
+                                      .where((value) => value.isNotEmpty)
+                                      .join(' • '),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTextStyles.caption,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        if (price > 0) ...[
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              const Text(
+                                'Giá từ',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.muted,
+                                ),
+                              ),
+                              Text(
+                                '${_formatDestinationPrice(price)}đ',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.ink,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 13),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.star_rounded,
+                          color: AppColors.gold,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          rating > 0 ? rating.toStringAsFixed(1) : 'Mới',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (reviews > 0)
+                          Text(' ($reviews)', style: AppTextStyles.caption),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _formatDestinationPrice(double value) {
+  final text = value.round().toString();
+  return text.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
+}
+
 class _DestinationSkeleton extends StatelessWidget {
   const _DestinationSkeleton();
 
@@ -551,7 +783,7 @@ class _DestinationSkeleton extends StatelessWidget {
       baseColor: const Color(0xFFE9EAED),
       highlightColor: const Color(0xFFF8F8F9),
       child: Container(
-        height: 116,
+        height: 330,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(13),

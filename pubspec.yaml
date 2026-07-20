@@ -46,7 +46,6 @@ dependencies:
   url_launcher: ^6.3.2
   panorama_viewer: ^2.0.7
   just_audio: ^0.10.6
-  shadcn_ui: ^0.55.0
   google_fonts: ^8.2.0
 
 dev_dependencies:

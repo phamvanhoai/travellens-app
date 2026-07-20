@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shadcn_ui/shadcn_ui.dart';
 import '../features/auth/auth_controller.dart';
 import '../design/app_colors.dart';
 import '../design/app_text_styles.dart';
@@ -33,8 +32,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       duration: const Duration(milliseconds: 600),
     );
     _fade = CurvedAnimation(parent: _anim, curve: Curves.easeOut);
-    _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _anim, curve: Curves.easeOut));
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _anim, curve: Curves.easeOut));
     _anim.forward();
   }
 
@@ -70,10 +71,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         : await controller.login(emailValue, password.text);
     if (!mounted || !ok) return;
     if (widget.register) {
-      ShadToaster.of(context).show(
-        const ShadToast(
-          title: Text('Account created'),
-          description: Text('Verify your email, then sign in.'),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Account created. Verify your email, then sign in.'),
         ),
       );
       context.go('/login');
@@ -96,11 +96,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFFECFDF8),
-                    Colors.white,
-                    Color(0xFFF0F9FF),
-                  ],
+                  colors: [Color(0xFFECFDF8), Colors.white, Color(0xFFF0F9FF)],
                   stops: [0, 0.5, 1],
                 ),
               ),
@@ -136,7 +132,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 440),
                   child: FadeTransition(
@@ -151,9 +150,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                             children: [
                               IconButton.outlined(
                                 onPressed: () => context.go('/home'),
-                                icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                                icon: const Icon(
+                                  Icons.arrow_back_rounded,
+                                  size: 20,
+                                ),
                                 style: IconButton.styleFrom(
-                                  side: const BorderSide(color: AppColors.border),
+                                  side: const BorderSide(
+                                    color: AppColors.border,
+                                  ),
                                 ),
                               ),
                               const Spacer(),
@@ -234,7 +238,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                     textInputAction: TextInputAction.next,
                                     decoration: InputDecoration(
                                       hintText: 'How should we call you?',
-                                      prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                                      prefixIcon: const Icon(
+                                        Icons.person_outline_rounded,
+                                        size: 20,
+                                      ),
                                       prefixIconColor: AppColors.muted,
                                     ),
                                   ),
@@ -248,7 +255,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                   textInputAction: TextInputAction.next,
                                   decoration: InputDecoration(
                                     hintText: 'you@example.com',
-                                    prefixIcon: const Icon(Icons.mail_outline_rounded, size: 20),
+                                    prefixIcon: const Icon(
+                                      Icons.mail_outline_rounded,
+                                      size: 20,
+                                    ),
                                     prefixIconColor: AppColors.muted,
                                   ),
                                 ),
@@ -262,19 +272,26 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                   onFieldSubmitted: (_) => submit(),
                                   decoration: InputDecoration(
                                     hintText: 'At least 6 characters',
-                                    prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                                    prefixIcon: const Icon(
+                                      Icons.lock_outline_rounded,
+                                      size: 20,
+                                    ),
                                     prefixIconColor: AppColors.muted,
                                     suffixIcon: IconButton(
                                       icon: Icon(
-                                        obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                        obscure
+                                            ? Icons.visibility_outlined
+                                            : Icons.visibility_off_outlined,
                                         size: 20,
                                         color: AppColors.muted,
                                       ),
-                                      onPressed: () => setState(() => obscure = !obscure),
+                                      onPressed: () =>
+                                          setState(() => obscure = !obscure),
                                     ),
                                   ),
                                 ),
-                                if (validationError != null || auth.error != null) ...[
+                                if (validationError != null ||
+                                    auth.error != null) ...[
                                   const SizedBox(height: 16),
                                   Container(
                                     padding: const EdgeInsets.all(14),
@@ -282,7 +299,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                       color: AppColors.errorSoft,
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
-                                        color: AppColors.error.withValues(alpha: .2),
+                                        color: AppColors.error.withValues(
+                                          alpha: .2,
+                                        ),
                                       ),
                                     ),
                                     child: Row(
@@ -296,9 +315,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                         Expanded(
                                           child: Text(
                                             validationError ?? auth.error!,
-                                            style: AppTextStyles.bodySmall.copyWith(
-                                              color: AppColors.error,
-                                            ),
+                                            style: AppTextStyles.bodySmall
+                                                .copyWith(
+                                                  color: AppColors.error,
+                                                ),
                                           ),
                                         ),
                                       ],
@@ -316,7 +336,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                             color: Colors.white,
                                           ),
                                         )
-                                      : Text(widget.register ? 'Create account' : 'Sign in'),
+                                      : Text(
+                                          widget.register
+                                              ? 'Create account'
+                                              : 'Sign in',
+                                        ),
                                 ),
                               ],
                             ),
@@ -328,7 +352,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                             ),
                             child: RichText(
                               text: TextSpan(
-                                style: AppTextStyles.bodySmall.copyWith(color: AppColors.muted),
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.muted,
+                                ),
                                 children: [
                                   TextSpan(
                                     text: widget.register
@@ -336,7 +362,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                         : 'New to TravelLens? ',
                                   ),
                                   TextSpan(
-                                    text: widget.register ? 'Sign in' : 'Create account',
+                                    text: widget.register
+                                        ? 'Sign in'
+                                        : 'Create account',
                                     style: GoogleFonts.outfit(
                                       color: AppColors.brand,
                                       fontWeight: FontWeight.w700,
@@ -365,8 +393,6 @@ class _FieldLabel extends StatelessWidget {
   const _FieldLabel(this.text);
   final String text;
   @override
-  Widget build(BuildContext context) => Text(
-    text,
-    style: AppTextStyles.label.copyWith(fontSize: 13),
-  );
+  Widget build(BuildContext context) =>
+      Text(text, style: AppTextStyles.label.copyWith(fontSize: 13));
 }

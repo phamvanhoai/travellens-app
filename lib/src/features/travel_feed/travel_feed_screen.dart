@@ -10,7 +10,6 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:shadcn_ui/shadcn_ui.dart' hide DateFormat;
 
 import '../../config/app_config.dart';
 import '../../core/network/api_client.dart';
@@ -116,7 +115,8 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
     final id = _postId(post), liked = post['is_liked'] == true;
     setState(() {
       post['is_liked'] = !liked;
-      post['like_count'] = ((post['like_count'] ?? 0) as num).toInt() + (liked ? -1 : 1);
+      post['like_count'] =
+          ((post['like_count'] ?? 0) as num).toInt() + (liked ? -1 : 1);
     });
     try {
       if (liked)
@@ -126,7 +126,8 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
     } catch (e) {
       setState(() {
         post['is_liked'] = liked;
-        post['like_count'] = ((post['like_count'] ?? 0) as num).toInt() + (liked ? 1 : -1);
+        post['like_count'] =
+            ((post['like_count'] ?? 0) as num).toInt() + (liked ? 1 : -1);
       });
     }
   }
@@ -152,20 +153,34 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
         child: CustomScrollView(
           slivers: [
             // App bar + header
-            SliverToBoxAdapter(child: _FeedHeader(search: search, onSearch: load, sort: sort, onSortChanged: (v) { sort = v; load(); })),
+            SliverToBoxAdapter(
+              child: _FeedHeader(
+                search: search,
+                onSearch: load,
+                sort: sort,
+                onSortChanged: (v) {
+                  sort = v;
+                  load();
+                },
+              ),
+            ),
 
             // Stories
             SliverToBoxAdapter(
               child: _StoriesSection(
                 stories: stories,
                 onTap: openStory,
-                onAdd: ref.watch(authProvider).authenticated ? openStoryComposer : null,
+                onAdd: ref.watch(authProvider).authenticated
+                    ? openStoryComposer
+                    : null,
               ),
             ),
 
             // Error
             if (error != null)
-              SliverToBoxAdapter(child: _ErrorBanner(error: error!, onRetry: load))
+              SliverToBoxAdapter(
+                child: _ErrorBanner(error: error!, onRetry: load),
+              )
             else if (loading)
               const SliverPadding(
                 padding: EdgeInsets.all(16),
@@ -231,9 +246,9 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
         .post('/travel-feed/$id/share', data: {'platform': 'other'})
         .catchError((_) => Response(requestOptions: RequestOptions()));
     if (mounted)
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Post share recorded.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Post share recorded.')));
   }
 
   Future<void> openComposer() async {
@@ -314,7 +329,11 @@ class _FeedHeader extends StatelessWidget {
                     color: Colors.white.withValues(alpha: .15),
                     borderRadius: BorderRadius.circular(11),
                   ),
-                  child: const Icon(Icons.travel_explore_rounded, color: Colors.white, size: 20),
+                  child: const Icon(
+                    Icons.travel_explore_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Column(
@@ -324,7 +343,12 @@ class _FeedHeader extends StatelessWidget {
                       'TravelLens',
                       style: AppTextStyles.h4White.copyWith(letterSpacing: -.3),
                     ),
-                    Text('Discover moments', style: AppTextStyles.bodySmallWhite.copyWith(fontSize: 10)),
+                    Text(
+                      'Discover moments',
+                      style: AppTextStyles.bodySmallWhite.copyWith(
+                        fontSize: 10,
+                      ),
+                    ),
                   ],
                 ),
                 const Spacer(),
@@ -343,7 +367,11 @@ class _FeedHeader extends StatelessWidget {
                       color: Colors.white.withValues(alpha: .15),
                       borderRadius: BorderRadius.circular(13),
                     ),
-                    child: const Icon(Icons.tune_rounded, color: Colors.white, size: 20),
+                    child: const Icon(
+                      Icons.tune_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                 ),
               ],
@@ -384,7 +412,11 @@ class _FeedHeader extends StatelessWidget {
               child: Row(
                 children: [
                   const SizedBox(width: 8),
-                  const Icon(Icons.search_rounded, color: AppColors.muted, size: 20),
+                  const Icon(
+                    Icons.search_rounded,
+                    color: AppColors.muted,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
@@ -398,8 +430,12 @@ class _FeedHeader extends StatelessWidget {
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
                         filled: false,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                        hintStyle: AppTextStyles.body.copyWith(color: AppColors.subtle),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                        ),
+                        hintStyle: AppTextStyles.body.copyWith(
+                          color: AppColors.subtle,
+                        ),
                       ),
                     ),
                   ),
@@ -408,7 +444,9 @@ class _FeedHeader extends StatelessWidget {
                     style: FilledButton.styleFrom(
                       minimumSize: const Size(50, 42),
                       padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: const Icon(Icons.arrow_forward_rounded, size: 18),
                   ),
@@ -425,7 +463,11 @@ class _FeedHeader extends StatelessWidget {
 // ─── Stories Section ─────────────────────────────────────────────────────────
 
 class _StoriesSection extends StatelessWidget {
-  const _StoriesSection({required this.stories, required this.onTap, this.onAdd});
+  const _StoriesSection({
+    required this.stories,
+    required this.onTap,
+    this.onAdd,
+  });
   final List<Map<String, dynamic>> stories;
   final ValueChanged<int> onTap;
   final VoidCallback? onAdd;
@@ -452,7 +494,10 @@ class _StoriesSection extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Travel Stories', style: AppTextStyles.h4),
-                    Text('Shared in the last 24 hours', style: AppTextStyles.caption),
+                    Text(
+                      'Shared in the last 24 hours',
+                      style: AppTextStyles.caption,
+                    ),
                   ],
                 ),
               ),
@@ -464,10 +509,17 @@ class _StoriesSection extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     backgroundColor: AppColors.successSoft,
                     foregroundColor: AppColors.success,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
                   ),
                   icon: const Icon(Icons.add_rounded, size: 16),
-                  label: Text('Add', style: AppTextStyles.label.copyWith(color: AppColors.success)),
+                  label: Text(
+                    'Add',
+                    style: AppTextStyles.label.copyWith(
+                      color: AppColors.success,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -477,7 +529,10 @@ class _StoriesSection extends StatelessWidget {
             child: groups.isEmpty
                 ? Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('No active stories yet.', style: AppTextStyles.bodySmall),
+                    child: Text(
+                      'No active stories yet.',
+                      style: AppTextStyles.bodySmall,
+                    ),
                   )
                 : ListView.separated(
                     scrollDirection: Axis.horizontal,
@@ -501,7 +556,11 @@ class _StoriesSection extends StatelessWidget {
                                 decoration: const BoxDecoration(
                                   shape: BoxShape.circle,
                                   gradient: LinearGradient(
-                                    colors: [Color(0xFFD946EF), Color(0xFFF43F5E), Color(0xFFF59E0B)],
+                                    colors: [
+                                      Color(0xFFD946EF),
+                                      Color(0xFFF43F5E),
+                                      Color(0xFFF59E0B),
+                                    ],
                                   ),
                                 ),
                                 child: Container(
@@ -512,11 +571,16 @@ class _StoriesSection extends StatelessWidget {
                                   padding: const EdgeInsets.all(2),
                                   child: CircleAvatar(
                                     backgroundColor: AppColors.borderLight,
-                                    backgroundImage: avatar.isEmpty ? null : CachedNetworkImageProvider(avatar),
+                                    backgroundImage: avatar.isEmpty
+                                        ? null
+                                        : CachedNetworkImageProvider(avatar),
                                     child: avatar.isEmpty
                                         ? Text(
-                                            author.characters.first.toUpperCase(),
-                                            style: AppTextStyles.label.copyWith(fontSize: 16),
+                                            author.characters.first
+                                                .toUpperCase(),
+                                            style: AppTextStyles.label.copyWith(
+                                              fontSize: 16,
+                                            ),
                                           )
                                         : null,
                                   ),
@@ -527,7 +591,9 @@ class _StoriesSection extends StatelessWidget {
                                 author,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
+                                style: AppTextStyles.caption.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ],
                           ),
@@ -576,7 +642,11 @@ class _PostCard extends StatelessWidget {
             padding: const EdgeInsets.all(14),
             child: Row(
               children: [
-                AppAvatar(name: authorName, imageUrl: avatar.isEmpty ? null : avatar, radius: 22),
+                AppAvatar(
+                  name: authorName,
+                  imageUrl: avatar.isEmpty ? null : avatar,
+                  radius: 22,
+                ),
                 const SizedBox(width: 11),
                 Expanded(
                   child: Column(
@@ -597,7 +667,11 @@ class _PostCard extends StatelessWidget {
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.more_horiz_rounded, color: AppColors.muted, size: 18),
+                  child: const Icon(
+                    Icons.more_horiz_rounded,
+                    color: AppColors.muted,
+                    size: 18,
+                  ),
                 ),
               ],
             ),
@@ -618,7 +692,10 @@ class _PostCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.accent.withValues(alpha: .08),
                       borderRadius: BorderRadius.circular(30),
@@ -626,7 +703,11 @@ class _PostCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.location_on_rounded, color: AppColors.accent, size: 14),
+                        const Icon(
+                          Icons.location_on_rounded,
+                          color: AppColors.accent,
+                          size: 14,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '${post['location_name'] ?? post['destination_name']}',
@@ -670,7 +751,9 @@ class _PostCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: _ActionBtn(
-                    icon: liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    icon: liked
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
                     label: liked ? 'Liked' : 'Like',
                     active: liked,
                     activeColor: const Color(0xFFFF4D6D),
@@ -819,7 +902,9 @@ class _PhotoViewer extends StatefulWidget {
 }
 
 class _PhotoViewerState extends State<_PhotoViewer> {
-  late final PageController controller = PageController(initialPage: widget.initialIndex);
+  late final PageController controller = PageController(
+    initialPage: widget.initialIndex,
+  );
   late int index = widget.initialIndex;
 
   @override
@@ -863,7 +948,10 @@ class _PhotoViewerState extends State<_PhotoViewer> {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black45,
                   borderRadius: BorderRadius.circular(20),
@@ -920,7 +1008,9 @@ class _ComposerState extends ConsumerState<_Composer> {
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiError(e))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiError(e))));
     } finally {
       if (mounted) setState(() => saving = false);
     }
@@ -932,7 +1022,12 @@ class _ComposerState extends ConsumerState<_Composer> {
     borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
     clipBehavior: Clip.antiAlias,
     child: SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.viewInsetsOf(context).bottom + 24),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        MediaQuery.viewInsetsOf(context).bottom + 24,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -956,9 +1051,14 @@ class _ComposerState extends ConsumerState<_Composer> {
                 height: 46,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(15),
-                  gradient: const LinearGradient(colors: AppColors.brandGradientLight),
+                  gradient: const LinearGradient(
+                    colors: AppColors.brandGradientLight,
+                  ),
                 ),
-                child: const Icon(Icons.auto_awesome_rounded, color: Colors.white),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -966,7 +1066,10 @@ class _ComposerState extends ConsumerState<_Composer> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Share a moment', style: AppTextStyles.h3),
-                    Text('Inspire travelers with your story', style: AppTextStyles.caption),
+                    Text(
+                      'Inspire travelers with your story',
+                      style: AppTextStyles.caption,
+                    ),
                   ],
                 ),
               ),
@@ -1004,8 +1107,14 @@ class _ComposerState extends ConsumerState<_Composer> {
                     right: 8,
                     child: IconButton(
                       onPressed: () => setState(() => image = null),
-                      icon: const Icon(Icons.close_rounded, color: Colors.white),
-                      style: IconButton.styleFrom(backgroundColor: Colors.black45, minimumSize: const Size(32, 32)),
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: Colors.white,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.black45,
+                        minimumSize: const Size(32, 32),
+                      ),
                     ),
                   ),
                 ],
@@ -1016,7 +1125,10 @@ class _ComposerState extends ConsumerState<_Composer> {
             children: [
               OutlinedButton.icon(
                 onPressed: () async {
-                  final x = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
+                  final x = await ImagePicker().pickImage(
+                    source: ImageSource.gallery,
+                    imageQuality: 85,
+                  );
                   if (x != null) setState(() => image = x);
                 },
                 icon: const Icon(Icons.photo_library_outlined, size: 18),
@@ -1032,7 +1144,10 @@ class _ComposerState extends ConsumerState<_Composer> {
                 icon: saving
                     ? const SizedBox.square(
                         dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Icon(Icons.send_rounded, size: 18),
                 label: Text(saving ? 'Publishing…' : 'Publish'),
@@ -1070,14 +1185,19 @@ class _StoryComposerState extends ConsumerState<_StoryComposer> {
     setState(() => saving = true);
     try {
       final form = FormData.fromMap({
-        'media_file': await MultipartFile.fromFile(file!.path, filename: file!.name),
+        'media_file': await MultipartFile.fromFile(
+          file!.path,
+          filename: file!.name,
+        ),
         'caption': caption.text.trim(),
       });
       await ref.read(dioProvider).post('/travel-stories', data: form);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiError(e))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiError(e))));
     } finally {
       if (mounted) setState(() => saving = false);
     }
@@ -1085,7 +1205,12 @@ class _StoryComposerState extends ConsumerState<_StoryComposer> {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.fromLTRB(18, 0, 18, MediaQuery.viewInsetsOf(context).bottom + 24),
+    padding: EdgeInsets.fromLTRB(
+      18,
+      0,
+      18,
+      MediaQuery.viewInsetsOf(context).bottom + 24,
+    ),
     child: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1113,9 +1238,16 @@ class _StoryComposerState extends ConsumerState<_StoryComposer> {
                 ? Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.upload_rounded, size: 38, color: AppColors.muted),
+                      Icon(
+                        Icons.upload_rounded,
+                        size: 38,
+                        color: AppColors.muted,
+                      ),
                       const SizedBox(height: 8),
-                      Text('Choose an image or video', style: AppTextStyles.bodySmall),
+                      Text(
+                        'Choose an image or video',
+                        style: AppTextStyles.bodySmall,
+                      ),
                     ],
                   )
                 : ClipRRect(
@@ -1137,7 +1269,10 @@ class _StoryComposerState extends ConsumerState<_StoryComposer> {
           child: saving
               ? const SizedBox.square(
                   dimension: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : const Text('Publish Story'),
         ),
@@ -1211,7 +1346,11 @@ class _StoryViewerState extends State<_StoryViewer> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 72),
+                    Icon(
+                      Icons.play_circle_fill_rounded,
+                      color: Colors.white,
+                      size: 72,
+                    ),
                     SizedBox(height: 10),
                     Text('Video story', style: TextStyle(color: Colors.white)),
                   ],
@@ -1246,7 +1385,9 @@ class _StoryViewerState extends State<_StoryViewer> {
                               builder: (_, v, _) => FractionallySizedBox(
                                 widthFactor: v,
                                 alignment: Alignment.centerLeft,
-                                child: const ColoredBox(color: AppColors.accent),
+                                child: const ColoredBox(
+                                  color: AppColors.accent,
+                                ),
                               ),
                             )
                           : const SizedBox.shrink(),
@@ -1271,7 +1412,9 @@ class _StoryViewerState extends State<_StoryViewer> {
                   IconButton(
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close_rounded, color: Colors.white),
-                    style: IconButton.styleFrom(backgroundColor: Colors.black38),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black38,
+                    ),
                   ),
                 ],
               ),
@@ -1346,10 +1489,12 @@ class _CommentsState extends ConsumerState<_Comments> {
   }
 
   Future<List<Map<String, dynamic>>> load() async {
-    final r = await ref.read(dioProvider).get(
-      '/travel-feed/${widget.postId}/comments',
-      queryParameters: {'page': 1, 'limit': 100},
-    );
+    final r = await ref
+        .read(dioProvider)
+        .get(
+          '/travel-feed/${widget.postId}/comments',
+          queryParameters: {'page': 1, 'limit': 100},
+        );
     return _commentTree(unwrapList(r.data, ['comments']));
   }
 
@@ -1358,10 +1503,12 @@ class _CommentsState extends ConsumerState<_Comments> {
     setState(() => sending = true);
     try {
       if (editingComment != null) {
-        await ref.read(dioProvider).patch(
-          '/travel-feed/comments/${_commentId(editingComment!)}',
-          data: {'content': input.text.trim()},
-        );
+        await ref
+            .read(dioProvider)
+            .patch(
+              '/travel-feed/comments/${_commentId(editingComment!)}',
+              data: {'content': input.text.trim()},
+            );
         input.clear();
         setState(() {
           editingComment = null;
@@ -1370,13 +1517,15 @@ class _CommentsState extends ConsumerState<_Comments> {
         return;
       }
       final parentId = _commentId(replyingTo ?? const {});
-      await ref.read(dioProvider).post(
-        '/travel-feed/${widget.postId}/comments',
-        data: {
-          'content': input.text.trim(),
-          if (parentId > 0) 'parent_comment_id': parentId,
-        },
-      );
+      await ref
+          .read(dioProvider)
+          .post(
+            '/travel-feed/${widget.postId}/comments',
+            data: {
+              'content': input.text.trim(),
+              if (parentId > 0) 'parent_comment_id': parentId,
+            },
+          );
       input.clear();
       setState(() {
         replyingTo = null;
@@ -1384,7 +1533,9 @@ class _CommentsState extends ConsumerState<_Comments> {
       });
     } catch (e) {
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiError(e))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiError(e))));
     } finally {
       if (mounted) setState(() => sending = false);
     }
@@ -1400,21 +1551,22 @@ class _CommentsState extends ConsumerState<_Comments> {
   }
 
   Future<void> deleteComment(Map<String, dynamic> comment) async {
-    final confirmed = await showShadDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => ShadDialog.alert(
+      builder: (ctx) => AlertDialog(
         title: const Text('Delete this comment?'),
-        description: const Padding(
+        content: const Padding(
           padding: EdgeInsets.only(bottom: 8),
           child: Text('This comment will be permanently removed.'),
         ),
         actions: [
-          ShadButton.outline(
+          OutlinedButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Keep'),
           ),
-          ShadButton.destructive(
+          FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('Delete'),
           ),
         ],
@@ -1422,11 +1574,18 @@ class _CommentsState extends ConsumerState<_Comments> {
     );
     if (confirmed != true) return;
     try {
-      await ref.read(dioProvider).delete('/travel-feed/comments/${_commentId(comment)}');
-      if (mounted) setState(() { future = load(); });
+      await ref
+          .read(dioProvider)
+          .delete('/travel-feed/comments/${_commentId(comment)}');
+      if (mounted)
+        setState(() {
+          future = load();
+        });
     } catch (e) {
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiError(e))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiError(e))));
     }
   }
 
@@ -1455,7 +1614,10 @@ class _CommentsState extends ConsumerState<_Comments> {
                     subtitle: 'Start the conversation!',
                   );
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 4,
+                  ),
                   itemCount: values.length,
                   itemBuilder: (_, i) => _CommentItem(
                     comment: values[i],
@@ -1480,7 +1642,10 @@ class _CommentsState extends ConsumerState<_Comments> {
                       editingComment != null
                           ? 'Editing your comment'
                           : 'Replying to ${_commentAuthor(replyingTo!)}',
-                      style: AppTextStyles.label.copyWith(color: AppColors.accent, fontSize: 12),
+                      style: AppTextStyles.label.copyWith(
+                        color: AppColors.accent,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -1503,7 +1668,9 @@ class _CommentsState extends ConsumerState<_Comments> {
                 Expanded(
                   child: TextField(
                     controller: input,
-                    decoration: const InputDecoration(hintText: 'Write a comment…'),
+                    decoration: const InputDecoration(
+                      hintText: 'Write a comment…',
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -1512,7 +1679,10 @@ class _CommentsState extends ConsumerState<_Comments> {
                   icon: sending
                       ? const SizedBox.square(
                           dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Icon(Icons.send_rounded, size: 18),
                 ),
@@ -1542,10 +1712,11 @@ class _CommentItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final replies = (comment['replies'] is List ? comment['replies'] as List : const [])
-        .whereType<Map>()
-        .map((item) => Map<String, dynamic>.from(item))
-        .toList();
+    final replies =
+        (comment['replies'] is List ? comment['replies'] as List : const [])
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList();
     final owner = currentUserId > 0 && currentUserId == _commentUserId(comment);
     final authorName = _commentAuthor(comment);
 
@@ -1561,7 +1732,10 @@ class _CommentItem extends StatelessWidget {
               const SizedBox(width: 9),
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 9,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(14),
@@ -1570,11 +1744,17 @@ class _CommentItem extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(authorName, style: AppTextStyles.label.copyWith(fontSize: 13)),
+                      Text(
+                        authorName,
+                        style: AppTextStyles.label.copyWith(fontSize: 13),
+                      ),
                       const SizedBox(height: 3),
                       Text(
                         '${comment['content'] ?? comment['comment'] ?? ''}',
-                        style: AppTextStyles.body.copyWith(fontSize: 14, height: 1.4),
+                        style: AppTextStyles.body.copyWith(
+                          fontSize: 14,
+                          height: 1.4,
+                        ),
                       ),
                     ],
                   ),
@@ -1593,7 +1773,12 @@ class _CommentItem extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     foregroundColor: AppColors.muted,
                   ),
-                  child: Text('Reply', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700)),
+                  child: Text(
+                    'Reply',
+                    style: AppTextStyles.caption.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
                 if (owner) ...[
                   TextButton(
@@ -1612,7 +1797,12 @@ class _CommentItem extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       foregroundColor: AppColors.error,
                     ),
-                    child: Text('Delete', style: AppTextStyles.caption.copyWith(color: AppColors.error)),
+                    child: Text(
+                      'Delete',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.error,
+                      ),
+                    ),
                   ),
                 ],
               ],
@@ -1652,9 +1842,18 @@ class _ErrorBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+          const Icon(
+            Icons.error_outline_rounded,
+            color: AppColors.error,
+            size: 20,
+          ),
           const SizedBox(width: 10),
-          Expanded(child: Text(error, style: AppTextStyles.bodySmall.copyWith(color: AppColors.error))),
+          Expanded(
+            child: Text(
+              error,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+            ),
+          ),
           TextButton(
             onPressed: onRetry,
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
@@ -1691,7 +1890,8 @@ class _FeedSkeleton extends StatelessWidget {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 int _postId(Map p) => int.tryParse('${p['post_id'] ?? p['id'] ?? 0}') ?? 0;
-int _commentId(Map c) => int.tryParse('${c['comment_id'] ?? c['id'] ?? 0}') ?? 0;
+int _commentId(Map c) =>
+    int.tryParse('${c['comment_id'] ?? c['id'] ?? 0}') ?? 0;
 int _commentUserId(Map c) {
   final user = c['user'] is Map ? c['user'] as Map : const {};
   final author = c['author'] is Map ? c['author'] as Map : const {};
@@ -1702,7 +1902,10 @@ int _commentUserId(Map c) {
 }
 
 int _authUserId(Map<String, dynamic>? user) =>
-    int.tryParse('${user?['user_id'] ?? user?['customer_id'] ?? user?['id'] ?? 0}') ?? 0;
+    int.tryParse(
+      '${user?['user_id'] ?? user?['customer_id'] ?? user?['id'] ?? 0}',
+    ) ??
+    0;
 
 String _commentAuthor(Map c) {
   final user = c['user'] is Map ? c['user'] as Map : const {};
@@ -1726,7 +1929,10 @@ List<Map<String, dynamic>> _flattenStories(dynamic payload) {
     if (nested is List) {
       for (final story in nested.whereType<Map>()) {
         final item = Map<String, dynamic>.from(story);
-        item.putIfAbsent('user_id', () => group['user_id'] ?? group['customer_id']);
+        item.putIfAbsent(
+          'user_id',
+          () => group['user_id'] ?? group['customer_id'],
+        );
         item.putIfAbsent('user', () => group['user'] ?? group['author']);
         result.add(item);
       }
@@ -1741,10 +1947,11 @@ List<Map<String, dynamic>> _commentTree(List<Map<String, dynamic>> source) {
   final byId = <int, Map<String, dynamic>>{};
   for (final value in source) {
     final item = Map<String, dynamic>.from(value);
-    item['replies'] = (item['replies'] is List ? item['replies'] as List : const [])
-        .whereType<Map>()
-        .map((reply) => Map<String, dynamic>.from(reply))
-        .toList();
+    item['replies'] =
+        (item['replies'] is List ? item['replies'] as List : const [])
+            .whereType<Map>()
+            .map((reply) => Map<String, dynamic>.from(reply))
+            .toList();
     byId[_commentId(item)] = item;
   }
   final roots = <Map<String, dynamic>>[];
