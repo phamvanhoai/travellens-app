@@ -86,86 +86,88 @@ class HomeScreen extends ConsumerWidget {
                     const SizedBox(height: 12),
                     const _ShortcutRow(items: _shortcuts),
                     if (_showUnsupportedFeaturedSections) ...[
-                    const SizedBox(height: 17),
-                    const _SectionTitle(
-                      title: 'Gợi ý dành cho bạn',
-                      route: '/destinations',
-                    ),
-                    const SizedBox(height: 9),
-                    if (_loading)
-                      const SizedBox(
-                        height: 150,
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: AppShimmerBox(
-                                width: null,
-                                height: 150,
+                      const SizedBox(height: 17),
+                      const _SectionTitle(
+                        title: 'Gợi ý dành cho bạn',
+                        route: '/destinations',
+                      ),
+                      const SizedBox(height: 9),
+                      if (_loading)
+                        const SizedBox(
+                          height: 150,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: AppShimmerBox(
+                                  width: null,
+                                  height: 150,
+                                  borderRadius: 13,
+                                ),
+                              ),
+                              SizedBox(width: 9),
+                              Expanded(
+                                child: AppShimmerBox(
+                                  width: null,
+                                  height: 150,
+                                  borderRadius: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else if (_destinations.isEmpty)
+                        const _CompactEmpty(label: 'Chưa có điểm đến nổi bật')
+                      else
+                        SizedBox(
+                          height: 150,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _destinations.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(width: 9),
+                            itemBuilder: (_, index) =>
+                                _DestinationCard(item: _destinations[index]),
+                          ),
+                        ),
+                      const SizedBox(height: 18),
+                      const _SectionTitle(
+                        title: 'Tour phổ biến',
+                        route: '/tours',
+                      ),
+                      const SizedBox(height: 9),
+                      if (_loading)
+                        const SizedBox(
+                          height: 112,
+                          child: Row(
+                            children: [
+                              AppShimmerBox(
+                                width: 160,
+                                height: 112,
                                 borderRadius: 13,
                               ),
-                            ),
-                            SizedBox(width: 9),
-                            Expanded(
-                              child: AppShimmerBox(
-                                width: null,
-                                height: 150,
+                              SizedBox(width: 9),
+                              AppShimmerBox(
+                                width: 160,
+                                height: 112,
                                 borderRadius: 13,
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
+                        )
+                      else if (_tours.isEmpty)
+                        const _CompactEmpty(label: 'Chưa có tour nổi bật')
+                      else
+                        SizedBox(
+                          height: 112,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _tours.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(width: 9),
+                            itemBuilder: (_, index) =>
+                                _TourCard(item: _tours[index]),
+                          ),
                         ),
-                      )
-                    else if (_destinations.isEmpty)
-                      const _CompactEmpty(label: 'Chưa có điểm đến nổi bật')
-                    else
-                      SizedBox(
-                        height: 150,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _destinations.length,
-                          separatorBuilder: (_, _) => const SizedBox(width: 9),
-                          itemBuilder: (_, index) =>
-                              _DestinationCard(item: _destinations[index]),
-                        ),
-                      ),
-                    const SizedBox(height: 18),
-                    const _SectionTitle(
-                      title: 'Tour phổ biến',
-                      route: '/tours',
-                    ),
-                    const SizedBox(height: 9),
-                    if (_loading)
-                      const SizedBox(
-                        height: 112,
-                        child: Row(
-                          children: [
-                            AppShimmerBox(
-                              width: 160,
-                              height: 112,
-                              borderRadius: 13,
-                            ),
-                            SizedBox(width: 9),
-                            AppShimmerBox(
-                              width: 160,
-                              height: 112,
-                              borderRadius: 13,
-                            ),
-                          ],
-                        ),
-                      )
-                    else if (_tours.isEmpty)
-                      const _CompactEmpty(label: 'Chưa có tour nổi bật')
-                    else
-                      SizedBox(
-                        height: 112,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _tours.length,
-                          separatorBuilder: (_, _) => const SizedBox(width: 9),
-                          itemBuilder: (_, index) =>
-                              _TourCard(item: _tours[index]),
-                        ),
-                      ),
                     ],
                   ],
                 ),
