@@ -15,6 +15,7 @@ import '../screens/booking_screen.dart';
 import '../screens/entity_screens.dart';
 import '../screens/home_screen.dart';
 import '../screens/my_bookings_screen.dart';
+import '../screens/my_travel_stories_screen.dart';
 import '../screens/payment_checkout_screen.dart';
 import '../screens/payment_history_screen.dart';
 import '../screens/reference_screens.dart';
@@ -151,15 +152,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/stories',
-        builder: (_, _) => const EntityListScreen(
-          config: EntityConfig(
-            title: 'My travel stories',
-            endpoint: '/travel-stories/mine',
-            keys: ['stories'],
-            detailBase: '',
-            auth: true,
-          ),
-        ),
+        builder: (_, _) => const MyTravelStoriesScreen(),
       ),
       GoRoute(
         path: '/group-trips',
