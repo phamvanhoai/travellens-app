@@ -130,7 +130,7 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(14),
           side: const BorderSide(color: AppColors.border),
         ),
       ),
@@ -142,7 +142,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 16,
+        ),
         hintStyle: GoogleFonts.inter(
           color: AppColors.subtle,
           fontWeight: FontWeight.w400,
@@ -171,27 +174,40 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size(0, 52),
           backgroundColor: AppColors.brand,
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          textStyle: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size(0, 52),
           foregroundColor: AppColors.ink,
           side: const BorderSide(color: AppColors.border, width: 1.5),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          textStyle: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.brand,
-          textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       chipTheme: ChipThemeData(
@@ -199,7 +215,10 @@ class AppTheme {
         selectedColor: AppColors.brand.withValues(alpha: .12),
         side: const BorderSide(color: AppColors.border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, color: AppColors.ink),
+        labelStyle: GoogleFonts.inter(
+          fontWeight: FontWeight.w600,
+          color: AppColors.ink,
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       ),
       dialogTheme: DialogThemeData(
@@ -232,7 +251,9 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(color: AppColors.brand),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AppColors.brand,
+      ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: AppColors.brand,
         foregroundColor: Colors.white,

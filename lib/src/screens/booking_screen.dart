@@ -402,6 +402,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                   ),
                   const SizedBox(width: 9),
                   SizedBox(
+                    width: 104,
                     height: 48,
                     child: OutlinedButton(
                       onPressed: _validatingCoupon
@@ -410,6 +411,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                                 ? _applyCoupon
                                 : _removeCoupon),
                       style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 48),
+                        maximumSize: const Size(104, 48),
                         padding: const EdgeInsets.symmetric(horizontal: 13),
                       ),
                       child: _validatingCoupon

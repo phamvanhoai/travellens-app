@@ -14,6 +14,7 @@ import '../screens/auth_screen.dart';
 import '../screens/booking_screen.dart';
 import '../screens/entity_screens.dart';
 import '../screens/home_screen.dart';
+import '../screens/payment_checkout_screen.dart';
 import '../screens/reference_screens.dart';
 import '../widgets/app_shell.dart';
 
@@ -232,8 +233,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/payment/checkout',
-        builder: (_, s) =>
-            PaymentScreen(bookingId: s.uri.queryParameters['bookingId'] ?? ''),
+        builder: (_, s) => PaymentCheckoutScreen(
+          bookingId: s.uri.queryParameters['bookingId'] ?? '',
+        ),
       ),
       GoRoute(path: '/ai', builder: (_, _) => const AiAssistantScreen()),
       GoRoute(path: '/maps', builder: (_, _) => const TravelMapScreen()),
