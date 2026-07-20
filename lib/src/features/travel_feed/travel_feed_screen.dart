@@ -33,7 +33,7 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
   String sort = 'newest';
   int feedTab = 0;
 
-  List<Map<String, dynamic>> get visiblePosts => feedTab == 2
+  List<Map<String, dynamic>> get visiblePosts => feedTab == 1
       ? posts.where((post) {
           final author = post['author'];
           return post['is_following'] == true ||
@@ -174,28 +174,27 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
             ),
 
             // Stories
-            if (feedTab == 1)
-              SliverToBoxAdapter(
-                child: _StoriesSection(
-                  stories: stories,
-                  onTap: openStory,
-                  onAdd: ref.watch(authProvider).authenticated
-                      ? openStoryComposer
-                      : null,
-                ),
+            SliverToBoxAdapter(
+              child: _StoriesSection(
+                stories: stories,
+                onTap: openStory,
+                onAdd: ref.watch(authProvider).authenticated
+                    ? openStoryComposer
+                    : null,
               ),
+            ),
 
             // Error
-            if (feedTab != 1 && error != null)
+            if (error != null)
               SliverToBoxAdapter(
                 child: _ErrorBanner(error: error!, onRetry: load),
               )
-            else if (feedTab != 1 && loading)
+            else if (loading)
               const SliverPadding(
                 padding: EdgeInsets.all(16),
                 sliver: _FeedSkeleton(),
               )
-            else if (feedTab != 1 && visiblePosts.isEmpty)
+            else if (visiblePosts.isEmpty)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 60),
@@ -206,7 +205,7 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
                   ),
                 ),
               )
-            else if (feedTab != 1)
+            else
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(18, 10, 18, 8),
                 sliver: SliverList.separated(
@@ -222,27 +221,26 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
               ),
 
             // Load more
-            if (feedTab != 1)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
-                  child: loadingMore
-                      ? const Center(child: CircularProgressIndicator())
-                      : page < totalPages
-                      ? OutlinedButton(
-                          onPressed: () => load(more: true),
-                          child: const Text('Load more posts'),
-                        )
-                      : posts.isNotEmpty
-                      ? Center(
-                          child: Text(
-                            "You're all caught up ✓",
-                            style: AppTextStyles.bodySmall,
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
+                child: loadingMore
+                    ? const Center(child: CircularProgressIndicator())
+                    : page < totalPages
+                    ? OutlinedButton(
+                        onPressed: () => load(more: true),
+                        child: const Text('Load more posts'),
+                      )
+                    : posts.isNotEmpty
+                    ? Center(
+                        child: Text(
+                          "You're all caught up ✓",
+                          style: AppTextStyles.bodySmall,
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ),
+            ),
           ],
         ),
       ),
@@ -368,10 +366,10 @@ class _FeedHeader extends StatelessWidget {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.fromLTRB(18, 4, 18, 5),
-              itemCount: 3,
+              itemCount: 2,
               separatorBuilder: (_, _) => const SizedBox(width: 7),
               itemBuilder: (_, index) => _CommunityTab(
-                label: const ['Bài viết', 'Stories', 'Đang theo dõi'][index],
+                label: const ['Bài viết', 'Đang theo dõi'][index],
                 selected: selectedTab == index,
                 onTap: () => onTabChanged(index),
               ),

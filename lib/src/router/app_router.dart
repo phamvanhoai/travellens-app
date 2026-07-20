@@ -18,6 +18,7 @@ import '../screens/my_bookings_screen.dart';
 import '../screens/payment_checkout_screen.dart';
 import '../screens/payment_history_screen.dart';
 import '../screens/reference_screens.dart';
+import '../screens/wishlist_screen.dart';
 import '../widgets/app_shell.dart';
 
 class _RouterRefreshNotifier extends ChangeNotifier {
@@ -130,18 +131,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           endpoint: '/travel-feed/${s.pathParameters['id']}',
         ),
       ),
-      GoRoute(
-        path: '/wishlist',
-        builder: (_, _) => const EntityListScreen(
-          config: EntityConfig(
-            title: 'Saved tours',
-            endpoint: '/saved/tours',
-            keys: ['tours', 'saved'],
-            detailBase: '/tours',
-            auth: true,
-          ),
-        ),
-      ),
+      GoRoute(path: '/wishlist', builder: (_, _) => const WishlistScreen()),
       GoRoute(path: '/bookings', builder: (_, _) => const MyBookingsScreen()),
       GoRoute(
         path: '/payments',
