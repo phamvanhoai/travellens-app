@@ -17,6 +17,7 @@ import '../screens/edit_profile_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/my_bookings_screen.dart';
 import '../screens/my_travel_stories_screen.dart';
+import '../screens/travel_map_screen.dart';
 import '../screens/payment_checkout_screen.dart';
 import '../screens/payment_history_screen.dart';
 import '../screens/reference_screens.dart';
