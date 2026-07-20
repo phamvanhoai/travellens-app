@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:shadcn_ui/shadcn_ui.dart' hide DateFormat;
 import '../../config/app_config.dart';
 import '../../core/network/api_client.dart';
 import '../auth/auth_controller.dart';
@@ -1430,10 +1431,27 @@ class _CommentsState extends ConsumerState<_Comments> {
   }
 
   Future<void> deleteComment(Map<String, dynamic> comment) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showShadDialog<bool>(
       context: context,
-      barrierColor: Colors.black.withValues(alpha: .55),
-      builder: (_) => const _DeleteCommentDialog(),
+      builder: (dialogContext) => ShadDialog.alert(
+        title: const Text('Delete this comment?'),
+        description: const Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: Text(
+            'This comment will be permanently removed. This action cannot be undone.',
+          ),
+        ),
+        actions: [
+          ShadButton.outline(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Keep comment'),
+          ),
+          ShadButton.destructive(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
     if (confirmed != true) return;
     try {
@@ -1543,81 +1561,6 @@ class _CommentsState extends ConsumerState<_Comments> {
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-class _DeleteCommentDialog extends StatelessWidget {
-  const _DeleteCommentDialog();
-
-  @override
-  Widget build(BuildContext context) => Dialog(
-    insetPadding: const EdgeInsets.symmetric(horizontal: 28),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color(0xFFFFE4E6),
-            ),
-            child: const Icon(
-              Icons.delete_outline_rounded,
-              size: 32,
-              color: Color(0xFFE11D48),
-            ),
-          ),
-          const SizedBox(height: 18),
-          const Text(
-            'Delete this comment?',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'This comment will be permanently removed. This action cannot be undone.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF64748B), height: 1.45),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                  ),
-                  child: const Text('Keep comment'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => Navigator.pop(context, true),
-                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                  label: const Text('Delete'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                    backgroundColor: const Color(0xFFE11D48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
