@@ -13,6 +13,7 @@ import '../screens/auth_screen.dart';
 import '../screens/booking_screen.dart';
 import '../screens/entity_screens.dart';
 import '../screens/home_screen.dart';
+import '../screens/reference_screens.dart';
 import '../widgets/app_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -232,28 +233,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/payment/checkout',
-        builder: (_, s) => EntityDetailScreen(
-          title: 'Payment checkout',
-          endpoint: '/bookings/${s.uri.queryParameters['bookingId'] ?? 0}',
+        builder: (_, s) => PaymentScreen(
+          bookingId: s.uri.queryParameters['bookingId'] ?? '',
         ),
       ),
       GoRoute(
         path: '/ai',
-        builder: (_, _) => const _InfoPage(
-          title: 'AI travel planner',
-          message:
-              'Describe your ideal trip to receive personalized destination recommendations.',
-          icon: Icons.auto_awesome,
-        ),
+        builder: (_, _) => const AiAssistantScreen(),
       ),
       GoRoute(
         path: '/maps',
-        builder: (_, _) => const _InfoPage(
-          title: 'Travel map',
-          message:
-              'Interactive location map integration is ready for the map provider key.',
-          icon: Icons.map,
-        ),
+        builder: (_, _) => const TravelMapScreen(),
       ),
       GoRoute(
         path: '/view360',

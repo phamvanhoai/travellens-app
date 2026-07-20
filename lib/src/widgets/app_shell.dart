@@ -24,7 +24,7 @@ class AppShell extends StatelessWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        extendBody: true,
+        extendBody: false,
         body: child,
         bottomNavigationBar: _FloatingNavBar(currentIndex: index),
       ),
@@ -39,27 +39,21 @@ class _FloatingNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      top: false,
       child: Container(
-        height: 68,
+        height: 66,
         decoration: BoxDecoration(
-          color: const Color(0xF8FFFFFF),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.border.withValues(alpha: .6)),
+          color: Colors.white,
+          border: const Border(top: BorderSide(color: AppColors.borderLight)),
           boxShadow: [
             BoxShadow(
-              color: AppColors.dark.withValues(alpha: .10),
-              blurRadius: 32,
-              offset: const Offset(0, 8),
-            ),
-            BoxShadow(
-              color: AppColors.brand.withValues(alpha: .04),
-              blurRadius: 16,
-              offset: const Offset(0, 2),
+              color: AppColors.dark.withValues(alpha: .04),
+              blurRadius: 12,
+              offset: const Offset(0, -2),
             ),
           ],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
         child: Row(
           children: List.generate(_items.length, (i) {
             final item = _items[i];
@@ -75,12 +69,7 @@ class _FloatingNavBar extends StatelessWidget {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 250),
                     curve: Curves.easeOutCubic,
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? AppColors.brand.withValues(alpha: .1)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
+                    decoration: const BoxDecoration(color: Colors.transparent),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -89,15 +78,15 @@ class _FloatingNavBar extends StatelessWidget {
                           child: Icon(
                             selected ? item.selectedIcon : item.icon,
                             key: ValueKey(selected),
-                            size: 22,
+                            size: 21,
                             color: selected ? AppColors.brand : AppColors.subtle,
                           ),
                         ),
                         const SizedBox(height: 3),
                         AnimatedDefaultTextStyle(
                           duration: const Duration(milliseconds: 200),
-                          style: GoogleFonts.outfit(
-                            fontSize: 10,
+                          style: GoogleFonts.inter(
+                            fontSize: 9,
                             fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
                             color: selected ? AppColors.brand : AppColors.subtle,
                           ),
@@ -123,9 +112,9 @@ class _NavItem {
 }
 
 const _items = [
-  _NavItem('Home', Icons.home_outlined, Icons.home_rounded),
-  _NavItem('Explore', Icons.explore_outlined, Icons.explore_rounded),
-  _NavItem('Tours', Icons.luggage_outlined, Icons.luggage_rounded),
-  _NavItem('Feed', Icons.dynamic_feed_outlined, Icons.dynamic_feed_rounded),
-  _NavItem('You', Icons.person_outline_rounded, Icons.person_rounded),
+  _NavItem('Trang chủ', Icons.home_outlined, Icons.home_rounded),
+  _NavItem('Khám phá', Icons.search_rounded, Icons.search_rounded),
+  _NavItem('Chuyến đi', Icons.card_travel_outlined, Icons.card_travel_rounded),
+  _NavItem('Cộng đồng', Icons.groups_outlined, Icons.groups_rounded),
+  _NavItem('Cá nhân', Icons.person_outline_rounded, Icons.person_rounded),
 ];

@@ -1,392 +1,225 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../design/app_colors.dart';
 import '../design/app_text_styles.dart';
-import '../design/app_widgets.dart';
+import '../features/auth/auth_controller.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  static const features = <_Feature>[
-    _Feature(
-      'Explore Destinations',
-      'Discover stunning places worldwide',
-      Icons.explore_rounded,
-      '/destinations',
-      AppColors.brand,
-      Color(0xFFECFDF8),
-    ),
-    _Feature(
-      'Curated Tours',
-      'Expert-led travel experiences',
-      Icons.luggage_rounded,
-      '/tours',
-      Color(0xFF7C3AED),
-      Color(0xFFF5F3FF),
-    ),
-    _Feature(
-      'Travel Feed',
-      'Stories from real travelers',
-      Icons.dynamic_feed_rounded,
-      '/travel-feed',
-      Color(0xFFDB2777),
-      Color(0xFFFDF2F8),
-    ),
-    _Feature(
-      'View in 360°',
-      'Step inside any scene',
-      Icons.threesixty_rounded,
-      '/view360',
-      Color(0xFF0284C7),
-      Color(0xFFEFF6FF),
-    ),
-    _Feature(
-      'AI Trip Planner',
-      'Smart recommendations for you',
-      Icons.auto_awesome_rounded,
-      '/ai',
-      Color(0xFFEA580C),
-      Color(0xFFFFF7ED),
-    ),
-    _Feature(
-      'Interactive Map',
-      'Find places near you',
-      Icons.map_rounded,
-      '/maps',
-      Color(0xFF16A34A),
-      Color(0xFFF0FDF4),
-    ),
+  static const _hero =
+      'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=90';
+  static const _places = [
+    ('Bali, Indonesia', 'Thiên đường nhiệt đới', 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=700&q=85', '4.8 (326)'),
+    ('Phú Quốc, Việt Nam', 'Biển xanh cát trắng', 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?auto=format&fit=crop&w=700&q=85', '4.7 (189)'),
+  ];
+  static const _shortcuts = [
+    ('Điểm đến', Icons.location_on_rounded, '/destinations', Color(0xFF8B5CF6), Color(0xFFF3E8FF)),
+    ('Tour', Icons.card_travel_rounded, '/tours', Color(0xFFEF4444), Color(0xFFFEE2E2)),
+    ('View360', Icons.threesixty_rounded, '/view360', Color(0xFF6366F1), Color(0xFFE0E7FF)),
+    ('Bản đồ', Icons.map_rounded, '/maps', Color(0xFF0EA5E9), Color(0xFFE0F2FE)),
+    ('AI Assistant', Icons.auto_awesome_rounded, '/ai', Color(0xFF9333EA), Color(0xFFF3E8FF)),
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider).user;
+    final name = '${user?['name'] ?? 'Huy'}'.split(' ').last;
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      body: CustomScrollView(
-        slivers: [
-          _HomeAppBar(),
-          SliverToBoxAdapter(child: _HeroBanner()),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
-            sliver: SliverToBoxAdapter(
-              child: AppSectionHeader(
-                title: 'Shape your journey',
-                subtitle: 'Everything you need, beautifully organized',
-              ),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        bottom: false,
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 100),
+              sliver: SliverList.list(children: [
+                _Greeting(name: name),
+                const SizedBox(height: 16),
+                const _SearchBox(),
+                const SizedBox(height: 16),
+                _HeroBanner(image: _hero),
+                const SizedBox(height: 16),
+                _ShortcutRow(items: _shortcuts),
+                const SizedBox(height: 20),
+                const _SectionTitle(title: 'Gợi ý dành cho bạn', route: '/destinations'),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 174,
+                  child: Row(
+                    children: [
+                      for (var i = 0; i < _places.length; i++) ...[
+                        Expanded(child: _PlaceCard(place: _places[i])),
+                        if (i == 0) const SizedBox(width: 10),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+                const _SectionTitle(title: 'Tour phổ biến', route: '/tours'),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 104,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: 3,
+                    separatorBuilder: (_, _) => const SizedBox(width: 10),
+                    itemBuilder: (_, i) => ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: CachedNetworkImage(
+                        imageUrl: _places[i % 2].$3,
+                        width: 154,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                ),
+              ]),
             ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-            sliver: SliverGrid.builder(
-              itemCount: features.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 14,
-                childAspectRatio: 1.1,
-              ),
-              itemBuilder: (_, i) => _FeatureCard(feature: features[i]),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
-            sliver: SliverToBoxAdapter(child: _GroupTripsBanner()),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class _HomeAppBar extends StatelessWidget {
+class _Greeting extends StatelessWidget {
+  const _Greeting({required this.name});
+  final String name;
   @override
-  Widget build(BuildContext context) {
-    return SliverAppBar(
-      pinned: true,
-      expandedHeight: 0,
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.transparent,
-      elevation: 0,
-      scrolledUnderElevation: 0.5,
-      titleSpacing: 20,
-      title: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(11),
-              gradient: const LinearGradient(
-                colors: AppColors.brandGradientLight,
-              ),
-            ),
-            child: const Icon(
-              Icons.travel_explore_rounded,
-              color: Colors.white,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            'TravelLens',
-            style: AppTextStyles.h3.copyWith(letterSpacing: -0.5),
-          ),
-        ],
+  Widget build(BuildContext context) => Row(children: [
+    const CircleAvatar(
+      radius: 17,
+      backgroundImage: NetworkImage('https://i.pravatar.cc/100?img=12'),
+    ),
+    const SizedBox(width: 10),
+    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Xin chào, $name 👋', style: AppTextStyles.label.copyWith(fontSize: 14)),
+      const SizedBox(height: 2),
+      Text('Bạn muốn khám phá đâu hôm nay?', style: AppTextStyles.caption),
+    ])),
+    IconButton(
+      onPressed: () => context.push('/invitations'),
+      icon: const Badge(smallSize: 7, child: Icon(Icons.notifications_none_rounded, size: 23)),
+    ),
+  ]);
+}
+
+class _SearchBox extends StatelessWidget {
+  const _SearchBox();
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: () => context.go('/destinations'),
+    child: Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(12),
       ),
-      actions: [
-        IconButton(
-          onPressed: () => context.push('/wishlist'),
-          icon: const Icon(Icons.favorite_border_rounded),
-          style: IconButton.styleFrom(
-            foregroundColor: AppColors.ink,
-          ),
-        ),
-        const SizedBox(width: 8),
-      ],
-    );
-  }
+      child: Row(children: [
+        const Icon(Icons.search_rounded, size: 20, color: AppColors.subtle),
+        const SizedBox(width: 10),
+        Expanded(child: Text('Tìm điểm đến, tour, trải nghiệm...', style: AppTextStyles.bodySmall)),
+        const Icon(Icons.tune_rounded, size: 19, color: AppColors.ink),
+      ]),
+    ),
+  );
 }
 
 class _HeroBanner extends StatelessWidget {
+  const _HeroBanner({required this.image});
+  final String image;
   @override
-  Widget build(BuildContext context) {
-    return Builder(
-      builder: (context) => Container(
-        margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-        height: 210,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF065F52), Color(0xFF0A7E6E), Color(0xFF06B6D4)],
-            stops: [0, 0.5, 1],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.brand.withValues(alpha: .30),
-              blurRadius: 32,
-              offset: const Offset(0, 14),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            // Decorative circles
-            Positioned(
-              right: -30,
-              top: -40,
-              child: Container(
-                width: 160,
-                height: 160,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: .06),
-                ),
-              ),
-            ),
-            Positioned(
-              right: 40,
-              bottom: -60,
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: .04),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(26),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .18),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'YOUR WORLD, REIMAGINED',
-                      style: AppTextStyles.labelSmall.copyWith(
-                        color: Colors.white,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    'Go beyond\nthe ordinary.',
-                    style: AppTextStyles.h1White.copyWith(fontSize: 30),
-                  ),
-                  const Spacer(),
-                  FilledButton(
-                    onPressed: () => context.go('/destinations'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppColors.brand,
-                      minimumSize: const Size(0, 44),
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      textStyle: GoogleFonts.outfit(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.explore_rounded, size: 18),
-                        SizedBox(width: 7),
-                        Text('Start exploring'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FeatureCard extends StatelessWidget {
-  const _FeatureCard({required this.feature});
-  final _Feature feature;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: () => context.go('/destinations'),
+    child: Container(
+      height: 188,
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push(feature.path),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: feature.soft,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Icon(feature.icon, color: feature.color, size: 24),
-              ),
-              const Spacer(),
-              Text(
-                feature.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.h4.copyWith(fontSize: 14),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                feature.subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.caption,
-              ),
-            ],
-          ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
+      child: Stack(fit: StackFit.expand, children: [
+        CachedNetworkImage(imageUrl: image, fit: BoxFit.cover),
+        const DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.transparent, Color(0xB8001733)],
+        ))),
+        Positioned(
+          left: 17,
+          bottom: 18,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Travel', style: AppTextStyles.h1White.copyWith(fontSize: 30, fontStyle: FontStyle.italic)),
+            Text('Không phá vỡ đam mê,\nmuốn non trên thế giới', style: AppTextStyles.bodySmallWhite.copyWith(color: Colors.white)),
+          ]),
         ),
-      ),
-    );
-  }
-}
-
-class _GroupTripsBanner extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push('/group-trips'),
-      child: Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          color: AppColors.dark,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.dark.withValues(alpha: .2),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.brandLight.withValues(alpha: .2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'NEW',
-                      style: AppTextStyles.labelSmall.copyWith(
-                        color: AppColors.brandLight,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Better trips,\ntogether.',
-                    style: AppTextStyles.h2White.copyWith(fontSize: 22),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Plan, invite and travel with your favorite people.',
-                    style: AppTextStyles.bodySmallWhite,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: AppColors.brandLight,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.arrow_forward_rounded,
-                color: Colors.white,
-                size: 22,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Feature {
-  const _Feature(
-    this.title,
-    this.subtitle,
-    this.icon,
-    this.path,
-    this.color,
-    this.soft,
+      ]),
+    ),
   );
-  final String title, subtitle, path;
-  final IconData icon;
-  final Color color, soft;
+}
+
+class _ShortcutRow extends StatelessWidget {
+  const _ShortcutRow({required this.items});
+  final List<(String, IconData, String, Color, Color)> items;
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: items.map((item) => InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => context.push(item.$3),
+      child: SizedBox(width: 62, child: Column(children: [
+        Container(
+          width: 43,
+          height: 43,
+          decoration: BoxDecoration(color: item.$5, shape: BoxShape.circle),
+          child: Icon(item.$2, color: item.$4, size: 21),
+        ),
+        const SizedBox(height: 7),
+        Text(item.$1, maxLines: 1, style: AppTextStyles.caption.copyWith(fontSize: 9, color: AppColors.ink)),
+      ])),
+    )).toList(),
+  );
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.title, required this.route});
+  final String title, route;
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    Expanded(child: Text(title, style: AppTextStyles.h4.copyWith(fontSize: 15))),
+    TextButton(onPressed: () => context.push(route), child: const Text('Xem tất cả')),
+  ]);
+}
+
+class _PlaceCard extends StatelessWidget {
+  const _PlaceCard({required this.place});
+  final (String, String, String, String) place;
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: () => context.push('/destinations'),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: Stack(fit: StackFit.expand, children: [
+        CachedNetworkImage(imageUrl: place.$3, fit: BoxFit.cover),
+        const DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.transparent, Color(0xC7000000)],
+        ))),
+        Positioned(left: 11, right: 9, bottom: 10, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(place.$1, style: AppTextStyles.label.copyWith(color: Colors.white, fontSize: 11)),
+          Text(place.$2, style: AppTextStyles.caption.copyWith(color: Colors.white70, fontSize: 9)),
+          const SizedBox(height: 5),
+          Row(children: [
+            const Icon(Icons.star_rounded, color: AppColors.gold, size: 13),
+            const SizedBox(width: 3),
+            Text(place.$4, style: AppTextStyles.caption.copyWith(color: Colors.white, fontSize: 9)),
+          ]),
+        ])),
+      ]),
+    ),
+  );
 }

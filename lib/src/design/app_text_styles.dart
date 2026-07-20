@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTextStyles {
-  static TextStyle get display => GoogleFonts.outfit(
+  static TextStyle get display => GoogleFonts.inter(
     fontSize: 40,
     fontWeight: FontWeight.w900,
     height: 1.05,
@@ -11,7 +11,7 @@ class AppTextStyles {
     color: AppColors.ink,
   );
 
-  static TextStyle get h1 => GoogleFonts.outfit(
+  static TextStyle get h1 => GoogleFonts.inter(
     fontSize: 32,
     fontWeight: FontWeight.w900,
     height: 1.08,
@@ -19,7 +19,7 @@ class AppTextStyles {
     color: AppColors.ink,
   );
 
-  static TextStyle get h2 => GoogleFonts.outfit(
+  static TextStyle get h2 => GoogleFonts.inter(
     fontSize: 26,
     fontWeight: FontWeight.w800,
     height: 1.12,
@@ -27,7 +27,7 @@ class AppTextStyles {
     color: AppColors.ink,
   );
 
-  static TextStyle get h3 => GoogleFonts.outfit(
+  static TextStyle get h3 => GoogleFonts.inter(
     fontSize: 20,
     fontWeight: FontWeight.w800,
     height: 1.2,
@@ -35,7 +35,7 @@ class AppTextStyles {
     color: AppColors.ink,
   );
 
-  static TextStyle get h4 => GoogleFonts.outfit(
+  static TextStyle get h4 => GoogleFonts.inter(
     fontSize: 17,
     fontWeight: FontWeight.w700,
     height: 1.3,
@@ -43,48 +43,48 @@ class AppTextStyles {
     color: AppColors.ink,
   );
 
-  static TextStyle get body => GoogleFonts.outfit(
+  static TextStyle get body => GoogleFonts.inter(
     fontSize: 15,
     fontWeight: FontWeight.w400,
     height: 1.55,
     color: AppColors.ink,
   );
 
-  static TextStyle get bodySmall => GoogleFonts.outfit(
+  static TextStyle get bodySmall => GoogleFonts.inter(
     fontSize: 13,
     fontWeight: FontWeight.w400,
     height: 1.5,
     color: AppColors.muted,
   );
 
-  static TextStyle get label => GoogleFonts.outfit(
+  static TextStyle get label => GoogleFonts.inter(
     fontSize: 13,
     fontWeight: FontWeight.w700,
     letterSpacing: 0.1,
     color: AppColors.ink,
   );
 
-  static TextStyle get labelSmall => GoogleFonts.outfit(
+  static TextStyle get labelSmall => GoogleFonts.inter(
     fontSize: 11,
     fontWeight: FontWeight.w700,
     letterSpacing: 0.5,
     color: AppColors.muted,
   );
 
-  static TextStyle get caption => GoogleFonts.outfit(
+  static TextStyle get caption => GoogleFonts.inter(
     fontSize: 11,
     fontWeight: FontWeight.w500,
     height: 1.4,
     color: AppColors.muted,
   );
 
-  static TextStyle get button => GoogleFonts.outfit(
+  static TextStyle get button => GoogleFonts.inter(
     fontSize: 15,
     fontWeight: FontWeight.w700,
     letterSpacing: 0.1,
   );
 
-  static TextStyle get price => GoogleFonts.outfit(
+  static TextStyle get price => GoogleFonts.inter(
     fontSize: 18,
     fontWeight: FontWeight.w900,
     color: AppColors.brand,

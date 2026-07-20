@@ -15,7 +15,8 @@ class LocationDetailScreen extends ConsumerStatefulWidget {
   const LocationDetailScreen({super.key, required this.id});
   final int id;
   @override
-  ConsumerState<LocationDetailScreen> createState() => _LocationDetailScreenState();
+  ConsumerState<LocationDetailScreen> createState() =>
+      _LocationDetailScreenState();
 }
 
 class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
@@ -30,8 +31,18 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
   @override
   void initState() {
     super.initState();
-    tabs = TabController(length: 4, vsync: this);
+    tabs = TabController(length: 5, vsync: this);
     load();
+  }
+
+  @override
+  void didUpdateWidget(covariant LocationDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.id != widget.id) {
+      item = null;
+      tabs.index = 0;
+      load();
+    }
   }
 
   @override
@@ -47,10 +58,13 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
       error = null;
     });
     try {
-      final response = await ref.read(dioProvider).get('/locations/${widget.id}');
+      final response = await ref
+          .read(dioProvider)
+          .get('/locations/${widget.id}');
       dynamic data = unwrap(response.data);
       if (data is Map && data['location'] is Map) data = data['location'];
-      if (mounted) setState(() => item = Map<String, dynamic>.from(data as Map));
+      if (mounted)
+        setState(() => item = Map<String, dynamic>.from(data as Map));
     } catch (e) {
       if (mounted) setState(() => error = apiError(e));
     } finally {
@@ -81,7 +95,7 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
     }
     if (comment.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your review.')),
+        const SnackBar(content: Text('Vui lòng nhập nội dung đánh giá.')),
       );
       return;
     }
@@ -95,13 +109,16 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
           );
       comment.clear();
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Review submitted.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Đã gửi đánh giá.')));
         await load();
       }
     } catch (e) {
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiError(e))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiError(e))));
     } finally {
       if (mounted) setState(() => reviewing = false);
     }
@@ -110,15 +127,18 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
   @override
   Widget build(BuildContext context) {
     if (loading)
-      return const Scaffold(backgroundColor: AppColors.surface, body: _Skeleton());
+      return const Scaffold(backgroundColor: Colors.white, body: _Skeleton());
     if (error != null || item == null)
       return Scaffold(
         appBar: AppBar(backgroundColor: Colors.white),
-        body: AppErrorState(error: error ?? 'Location not found.', onRetry: load),
+        body: AppErrorState(
+          error: error ?? 'Không tìm thấy địa điểm.',
+          onRetry: load,
+        ),
       );
 
     final x = item!;
-    final name = _text(x, ['name', 'title'], 'Location');
+    final name = _text(x, ['name', 'title'], 'Địa điểm');
     final destination = _destination(x);
     final destinationId = _destinationId(x);
     final image = AppConfig.assetUrl(_image(x) ?? '');
@@ -126,21 +146,40 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
     final maps = records(['maps', 'Maps']);
     final scenes = records(['view360', 'view360s', 'View360s']);
     final reviews = records(['reviews', 'Reviews']);
-    final rating = double.tryParse('${x['average_rating'] ?? x['rating'] ?? 0}') ?? 0;
+    final gallery = records(['images', 'Images', 'photos', 'gallery']);
+    final rating =
+        double.tryParse('${x['average_rating'] ?? x['rating'] ?? 0}') ?? 0;
     final reviewCount =
-        int.tryParse('${x['reviews_count'] ?? x['review_count'] ?? reviews.length}') ??
+        int.tryParse(
+          '${x['reviews_count'] ?? x['review_count'] ?? reviews.length}',
+        ) ??
         reviews.length;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: Colors.white,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            expandedHeight: 400,
-            pinned: true,
+            expandedHeight: 300,
+            pinned: false,
             stretch: true,
-            backgroundColor: AppColors.dark,
-            foregroundColor: Colors.white,
+            backgroundColor: Colors.white,
+            foregroundColor: AppColors.ink,
+            leading: Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: IconButton(
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/locations');
+                  }
+                },
+                icon: const Icon(Icons.arrow_back_rounded, size: 19),
+                style: IconButton.styleFrom(backgroundColor: Colors.white),
+              ),
+            ),
+            leadingWidth: 58,
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,
@@ -148,32 +187,50 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
                   image.isEmpty
                       ? const ColoredBox(
                           color: AppColors.dark,
-                          child: Icon(Icons.place_rounded, color: Colors.white54, size: 80),
+                          child: Icon(
+                            Icons.place_rounded,
+                            color: Colors.white54,
+                            size: 80,
+                          ),
                         )
                       : CachedNetworkImage(imageUrl: image, fit: BoxFit.cover),
-                  const AppHeroOverlay(strong: true),
+                  const AppHeroOverlay(),
                   Positioned(
                     left: 20,
                     right: 20,
-                    bottom: 30,
+                    bottom: 24,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        AppBadge(label: 'LOCATION DETAIL'),
-                        const SizedBox(height: 12),
-                        Text(name, style: AppTextStyles.h1White.copyWith(fontSize: 30)),
+                        AppBadge(label: 'ĐỊA ĐIỂM'),
+                        const SizedBox(height: 10),
+                        Text(
+                          name,
+                          style: AppTextStyles.h1White.copyWith(fontSize: 26),
+                        ),
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            const Icon(Icons.location_on_rounded, color: Colors.white60, size: 15),
+                            const Icon(
+                              Icons.location_on_rounded,
+                              color: Colors.white60,
+                              size: 15,
+                            ),
                             const SizedBox(width: 4),
-                            Text(destination, style: AppTextStyles.bodySmallWhite),
+                            Text(
+                              destination,
+                              style: AppTextStyles.bodySmallWhite,
+                            ),
                             if (rating > 0) ...[
                               const SizedBox(width: 14),
-                              const Icon(Icons.star_rounded, color: AppColors.gold, size: 15),
+                              const Icon(
+                                Icons.star_rounded,
+                                color: AppColors.gold,
+                                size: 15,
+                              ),
                               const SizedBox(width: 4),
                               Text(
-                                '${rating.toStringAsFixed(1)} ($reviewCount reviews)',
+                                '${rating.toStringAsFixed(1)} ($reviewCount đánh giá)',
                                 style: AppTextStyles.bodySmallWhite,
                               ),
                             ],
@@ -191,7 +248,7 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
           SliverToBoxAdapter(
             child: Container(
               color: Colors.white,
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -200,7 +257,10 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
                       description,
                       maxLines: 4,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.body.copyWith(color: AppColors.muted),
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.muted,
+                        height: 1.6,
+                      ),
                     ),
                     const SizedBox(height: 18),
                   ],
@@ -210,7 +270,7 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
                         child: AppStatCard(
                           icon: Icons.map_outlined,
                           value: '${maps.length}',
-                          label: 'Maps',
+                          label: 'Bản đồ',
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -218,7 +278,7 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
                         child: AppStatCard(
                           icon: Icons.threesixty_rounded,
                           value: '${scenes.length}',
-                          label: 'Scenes',
+                          label: 'Không gian',
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -226,31 +286,9 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
                         child: AppStatCard(
                           icon: Icons.star_outline_rounded,
                           value: '$reviewCount',
-                          label: 'Reviews',
+                          label: 'Đánh giá',
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: () => context.push('/view360?locationId=${widget.id}'),
-                          icon: const Icon(Icons.threesixty_rounded, size: 18),
-                          label: const Text('Open 360°'),
-                        ),
-                      ),
-                      if (destinationId > 0) ...[
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => context.push('/destinations/$destinationId'),
-                            icon: const Icon(Icons.explore_outlined, size: 18),
-                            label: const Text('Destination'),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ],
@@ -264,24 +302,63 @@ class _LocationDetailScreenState extends ConsumerState<LocationDetailScreen>
             child: AnimatedBuilder(
               animation: tabs,
               builder: (_, _) => Padding(
-                padding: const EdgeInsets.fromLTRB(16, 22, 16, 40),
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
                 child: switch (tabs.index) {
                   0 => _Overview(item: x, destination: destination),
-                  1 => _MapTab(maps: maps, location: x, name: name),
-                  2 => _Reviews(
+                  1 => _GalleryTab(
+                    images: gallery,
+                    scenes: scenes,
+                    heroImage: image,
+                  ),
+                  2 => _ScenesTab(scenes: scenes, locationId: widget.id),
+                  3 => _MapTab(maps: maps, location: x, name: name),
+                  _ => _Reviews(
                       reviews: reviews,
-                      rating: reviewRating,
-                      onRating: (v) => setState(() => reviewRating = v),
-                      controller: comment,
-                      submitting: reviewing,
-                      onSubmit: submitReview,
-                    ),
-                  _ => _ScenesTab(scenes: scenes, locationId: widget.id),
+                    rating: reviewRating,
+                    onRating: (v) => setState(() => reviewRating = v),
+                    controller: comment,
+                    submitting: reviewing,
+                    onSubmit: submitReview,
+                  ),
                 },
               ),
             ),
           ),
         ],
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: AppColors.borderLight)),
+          ),
+          child: Row(
+            children: [
+              if (destinationId > 0) ...[
+                OutlinedButton(
+                  onPressed: () => context.push('/destinations/$destinationId'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(50, 48),
+                    maximumSize: const Size(50, 48),
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: const Icon(Icons.explore_outlined, size: 20),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () =>
+                      context.push('/view360?locationId=${widget.id}'),
+                  icon: const Icon(Icons.threesixty_rounded, size: 20),
+                  label: const Text('Trải nghiệm 360°'),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -296,30 +373,85 @@ class _Header extends SliverPersistentHeaderDelegate {
   double get maxExtent => 58;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => Material(
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) => Material(
     color: Colors.white,
-    elevation: overlapsContent ? 1.5 : 0,
-    shadowColor: AppColors.dark.withValues(alpha: .08),
-    child: TabBar(
-      controller: controller,
-      isScrollable: true,
-      tabAlignment: TabAlignment.start,
-      labelColor: AppColors.brand,
-      unselectedLabelColor: AppColors.muted,
-      indicatorColor: AppColors.brand,
-      indicatorWeight: 2.5,
-      dividerColor: AppColors.border,
-      labelStyle: AppTextStyles.label.copyWith(fontSize: 13),
-      unselectedLabelStyle: AppTextStyles.label.copyWith(
-        fontSize: 13,
-        fontWeight: FontWeight.w500,
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(16, 7, 16, 7),
+      child: TabBar(
+        controller: controller,
+        isScrollable: true,
+        tabAlignment: TabAlignment.start,
+        labelColor: Colors.white,
+        unselectedLabelColor: AppColors.muted,
+        indicator: BoxDecoration(
+          color: AppColors.brand,
+          borderRadius: BorderRadius.circular(11),
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        dividerColor: Colors.transparent,
+        labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+        labelStyle: AppTextStyles.label.copyWith(fontSize: 11),
+        unselectedLabelStyle: AppTextStyles.label.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+        ),
+        tabs: const [
+          Tab(
+            height: 44,
+            child: Row(
+              children: [
+                Icon(Icons.info_outline_rounded, size: 15),
+                SizedBox(width: 6),
+                Text('Tổng quan'),
+              ],
+            ),
+          ),
+          Tab(
+            height: 44,
+            child: Row(
+              children: [
+                Icon(Icons.photo_library_outlined, size: 15),
+                SizedBox(width: 6),
+                Text('Hình ảnh'),
+              ],
+            ),
+          ),
+          Tab(
+            height: 44,
+            child: Row(
+              children: [
+                Icon(Icons.threesixty_rounded, size: 15),
+                SizedBox(width: 6),
+                Text('View360'),
+              ],
+            ),
+          ),
+          Tab(
+            height: 44,
+            child: Row(
+              children: [
+                Icon(Icons.map_outlined, size: 15),
+                SizedBox(width: 6),
+                Text('Sơ đồ'),
+              ],
+            ),
+          ),
+          Tab(
+            height: 44,
+            child: Row(
+              children: [
+                Icon(Icons.star_outline_rounded, size: 15),
+                SizedBox(width: 6),
+                Text('Đánh giá'),
+              ],
+            ),
+          ),
+        ],
       ),
-      tabs: const [
-        Tab(icon: Icon(Icons.info_outline_rounded, size: 16), text: 'Overview'),
-        Tab(icon: Icon(Icons.map_outlined, size: 16), text: 'Map'),
-        Tab(icon: Icon(Icons.star_outline_rounded, size: 16), text: 'Reviews'),
-        Tab(icon: Icon(Icons.threesixty_rounded, size: 16), text: '360 Scenes'),
-      ],
     ),
   );
 
@@ -336,17 +468,17 @@ class _Overview extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('Location Information', style: AppTextStyles.h3),
+      Text('Thông tin địa điểm', style: AppTextStyles.h4),
       const SizedBox(height: 16),
       AppInfoRow(
         icon: Icons.location_on_outlined,
-        label: 'Address',
+        label: 'Địa chỉ',
         value: '${item['address'] ?? destination}',
       ),
       const SizedBox(height: 10),
       AppInfoRow(
         icon: Icons.my_location_rounded,
-        label: 'Coordinates',
+        label: 'Tọa độ',
         value: '${item['latitude'] ?? '-'}, ${item['longitude'] ?? '-'}',
       ),
     ],
@@ -354,7 +486,11 @@ class _Overview extends StatelessWidget {
 }
 
 class _MapTab extends StatelessWidget {
-  const _MapTab({required this.maps, required this.location, required this.name});
+  const _MapTab({
+    required this.maps,
+    required this.location,
+    required this.name,
+  });
   final List<Map<String, dynamic>> maps;
   final Map<String, dynamic> location;
   final String name;
@@ -371,7 +507,7 @@ class _MapTab extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.borderLight,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
       ),
       child: Stack(
@@ -383,9 +519,13 @@ class _MapTab extends StatelessWidget {
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.map_outlined, size: 54, color: AppColors.subtle),
+                const Icon(
+                  Icons.map_outlined,
+                  size: 54,
+                  color: AppColors.subtle,
+                ),
                 const SizedBox(height: 8),
-                Text('No map image available', style: AppTextStyles.bodySmall),
+                Text('Chưa có hình ảnh bản đồ', style: AppTextStyles.bodySmall),
               ],
             ),
           Center(
@@ -402,7 +542,11 @@ class _MapTab extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Icon(Icons.location_on_rounded, color: Colors.white, size: 26),
+              child: const Icon(
+                Icons.location_on_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
             ),
           ),
         ],
@@ -436,13 +580,13 @@ class _Reviews extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Share your experience', style: AppTextStyles.h4),
+            Text('Chia sẻ trải nghiệm', style: AppTextStyles.h4),
             const SizedBox(height: 14),
             Row(
               children: List.generate(
@@ -450,7 +594,9 @@ class _Reviews extends StatelessWidget {
                 (i) => GestureDetector(
                   onTap: () => onRating(i + 1),
                   child: Icon(
-                    i < rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                    i < rating
+                        ? Icons.star_rounded
+                        : Icons.star_outline_rounded,
                     color: AppColors.gold,
                     size: 32,
                   ),
@@ -463,7 +609,7 @@ class _Reviews extends StatelessWidget {
               maxLength: 1000,
               maxLines: 4,
               decoration: const InputDecoration(
-                hintText: 'What did you think of this location?',
+                hintText: 'Bạn cảm nhận thế nào về địa điểm này?',
               ),
             ),
             const SizedBox(height: 12),
@@ -472,21 +618,24 @@ class _Reviews extends StatelessWidget {
               child: submitting
                   ? const SizedBox.square(
                       dimension: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
-                  : const Text('Submit Review'),
+                  : const Text('Gửi đánh giá'),
             ),
           ],
         ),
       ),
       const SizedBox(height: 24),
-      Text('Reviews', style: AppTextStyles.h3),
+      Text('Đánh giá từ du khách', style: AppTextStyles.h4),
       const SizedBox(height: 14),
       if (reviews.isEmpty)
         AppEmptyState(
           icon: Icons.star_outline_rounded,
-          title: 'No reviews yet',
-          subtitle: 'Be the first to share your experience!',
+          title: 'Chưa có đánh giá',
+          subtitle: 'Hãy là người đầu tiên chia sẻ trải nghiệm!',
         )
       else
         ...reviews.map((r) {
@@ -495,7 +644,7 @@ class _Reviews extends StatelessWidget {
               r['user_name'] ??
               r['reviewer_name'] ??
               (nestedUser is Map ? nestedUser['name'] : null) ??
-              'Traveler';
+              'Du khách';
           final reviewRating = double.tryParse('${r['rating'] ?? 0}') ?? 0;
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -520,7 +669,7 @@ class _Reviews extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  '${r['comment'] ?? r['content'] ?? 'No written comment.'}',
+                  '${r['comment'] ?? r['content'] ?? 'Không có nội dung đánh giá.'}',
                   style: AppTextStyles.body.copyWith(color: AppColors.muted),
                 ),
               ],
@@ -541,8 +690,8 @@ class _ScenesTab extends StatelessWidget {
     if (scenes.isEmpty)
       return AppEmptyState(
         icon: Icons.threesixty_rounded,
-        title: 'No 360° scenes yet',
-        subtitle: 'No virtual scenes have been added for this location.',
+        title: 'Chưa có không gian 360°',
+        subtitle: 'Địa điểm này chưa được thêm không gian tham quan ảo.',
       );
     return Column(
       children: scenes.asMap().entries.map((e) {
@@ -558,7 +707,8 @@ class _ScenesTab extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
-              onTap: () => context.push('/view360?locationId=$locationId&sceneId=$id'),
+              onTap: () =>
+                  context.push('/view360?locationId=$locationId&sceneId=$id'),
               child: Row(
                 children: [
                   Container(
@@ -566,8 +716,15 @@ class _ScenesTab extends StatelessWidget {
                     height: 85,
                     color: AppColors.borderLight,
                     child: image.isEmpty
-                        ? const Icon(Icons.threesixty_rounded, color: AppColors.accent, size: 32)
-                        : CachedNetworkImage(imageUrl: image, fit: BoxFit.cover),
+                        ? const Icon(
+                            Icons.threesixty_rounded,
+                            color: AppColors.accent,
+                            size: 32,
+                          )
+                        : CachedNetworkImage(
+                            imageUrl: image,
+                            fit: BoxFit.cover,
+                          ),
                   ),
                   Expanded(
                     child: Padding(
@@ -581,8 +738,10 @@ class _ScenesTab extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Open 360° experience',
-                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.accent),
+                            'Mở trải nghiệm 360°',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.accent,
+                            ),
                           ),
                         ],
                       ),
@@ -597,7 +756,11 @@ class _ScenesTab extends StatelessWidget {
                         color: AppColors.accent.withValues(alpha: .1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.accent),
+                      child: const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
+                        color: AppColors.accent,
+                      ),
                     ),
                   ),
                 ],
@@ -657,11 +820,16 @@ String _text(Map item, List<String> keys, String fallback) {
   return fallback;
 }
 
-String _clean(String value) =>
-    value.replaceAll(RegExp('<[^>]*>'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+String _clean(String value) => value
+    .replaceAll(RegExp('<[^>]*>'), ' ')
+    .replaceAll(RegExp(r'\s+'), ' ')
+    .trim();
 
 String? _image(Map item) =>
-    item['thumbnail_url'] ?? item['thumbnail'] ?? item['image_url'] ?? item['image'];
+    item['thumbnail_url'] ??
+    item['thumbnail'] ??
+    item['image_url'] ??
+    item['image'];
 
 String _destination(Map item) {
   final dest = item['destination'] ?? item['travel_destination'];
@@ -672,6 +840,12 @@ String _destination(Map item) {
 int _destinationId(Map item) {
   final dest = item['destination'] ?? item['travel_destination'];
   if (dest is Map)
-    return int.tryParse('${dest['travel_destination_id'] ?? dest['destination_id'] ?? dest['id'] ?? 0}') ?? 0;
-  return int.tryParse('${item['destination_id'] ?? item['travel_destination_id'] ?? 0}') ?? 0;
+    return int.tryParse(
+          '${dest['travel_destination_id'] ?? dest['destination_id'] ?? dest['id'] ?? 0}',
+        ) ??
+        0;
+  return int.tryParse(
+        '${item['destination_id'] ?? item['travel_destination_id'] ?? 0}',
+      ) ??
+      0;
 }

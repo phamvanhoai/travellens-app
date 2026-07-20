@@ -2,20 +2,20 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   // Brand
-  static const brand = Color(0xFF0A7E6E);
-  static const brandDark = Color(0xFF065F52);
-  static const brandLight = Color(0xFF14B8A6);
-  static const accent = Color(0xFF06B6D4);
-  static const accentLight = Color(0xFFE0F9FF);
+  static const brand = Color(0xFF2563EB);
+  static const brandDark = Color(0xFF1D4ED8);
+  static const brandLight = Color(0xFF3B82F6);
+  static const accent = Color(0xFF2563EB);
+  static const accentLight = Color(0xFFEFF6FF);
 
   // Neutrals
-  static const dark = Color(0xFF0D1117);
-  static const ink = Color(0xFF111827);
-  static const muted = Color(0xFF6B7280);
-  static const subtle = Color(0xFF9CA3AF);
-  static const border = Color(0xFFE5E7EB);
-  static const borderLight = Color(0xFFF3F4F6);
-  static const surface = Color(0xFFF7F9FC);
+  static const dark = Color(0xFF111827);
+  static const ink = Color(0xFF171717);
+  static const muted = Color(0xFF71717A);
+  static const subtle = Color(0xFFA1A1AA);
+  static const border = Color(0xFFE4E4E7);
+  static const borderLight = Color(0xFFF4F4F5);
+  static const surface = Color(0xFFFAFAFA);
   static const card = Colors.white;
 
   // Semantic
@@ -26,9 +26,9 @@ class AppColors {
   static const successSoft = Color(0xFFECFDF5);
 
   // Brand gradients
-  static const List<Color> brandGradient = [Color(0xFF065F52), Color(0xFF0A7E6E)];
-  static const List<Color> brandGradientLight = [Color(0xFF0A7E6E), Color(0xFF06B6D4)];
-  static const List<Color> heroGradient = [Color(0xFF0D1117), Color(0xFF134E4A)];
+  static const List<Color> brandGradient = [Color(0xFF1D4ED8), Color(0xFF2563EB)];
+  static const List<Color> brandGradientLight = [Color(0xFF2563EB), Color(0xFF60A5FA)];
+  static const List<Color> heroGradient = [Color(0xFF172554), Color(0xFF1D4ED8)];
 
   // Overlay
   static const overlayDark = Color(0xCC000000);

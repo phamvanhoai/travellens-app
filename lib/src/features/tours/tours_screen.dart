@@ -73,7 +73,7 @@ class _ToursScreenState extends ConsumerState<ToursScreen> {
           SliverAppBar(
             pinned: true,
             backgroundColor: Colors.white,
-            title: const Text('Curated Tours'),
+            title: const Text('Khám phá tour'),
             actions: [
               IconButton(
                 icon: const Icon(Icons.favorite_border_rounded),
@@ -93,12 +93,12 @@ class _ToursScreenState extends ConsumerState<ToursScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Travel deeper,\nwithout the\nguesswork.',
+                    'Hành trình đáng nhớ,\ntrải nghiệm trọn vẹn.',
                     style: AppTextStyles.h1,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Thoughtfully curated experiences led by people who truly know each place.',
+                    'Những chuyến đi được tuyển chọn kỹ lưỡng dành riêng cho bạn.',
                     style: AppTextStyles.bodySmall,
                   ),
                   const SizedBox(height: 20),
@@ -121,7 +121,7 @@ class _ToursScreenState extends ConsumerState<ToursScreen> {
                             onSubmitted: (_) => load(),
                             style: AppTextStyles.body,
                             decoration: InputDecoration(
-                              hintText: 'Search tours and experiences…',
+                              hintText: 'Tìm tour và trải nghiệm…',
                               border: InputBorder.none,
                               enabledBorder: InputBorder.none,
                               focusedBorder: InputBorder.none,
@@ -173,9 +173,9 @@ class _ToursScreenState extends ConsumerState<ToursScreen> {
                           load();
                         },
                         itemBuilder: (_) => const [
-                          PopupMenuItem(value: 'newest', child: Text('Newest')),
-                          PopupMenuItem(value: 'popular', child: Text('Popular')),
-                          PopupMenuItem(value: 'price_asc', child: Text('Lowest price')),
+                          PopupMenuItem(value: 'newest', child: Text('Mới nhất')),
+                          PopupMenuItem(value: 'popular', child: Text('Phổ biến')),
+                          PopupMenuItem(value: 'price_asc', child: Text('Giá thấp nhất')),
                         ],
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
@@ -228,8 +228,8 @@ class _ToursScreenState extends ConsumerState<ToursScreen> {
             SliverToBoxAdapter(
               child: AppEmptyState(
                 icon: Icons.luggage_rounded,
-                title: 'No tours found',
-                subtitle: 'Try different search terms.',
+                title: 'Không tìm thấy tour',
+                subtitle: 'Hãy thử một từ khóa khác.',
               ),
             )
           else
@@ -377,7 +377,7 @@ class _TourCard extends StatelessWidget {
                   if (duration != null) ...[
                     const Icon(Icons.schedule_rounded, size: 16, color: AppColors.muted),
                     const SizedBox(width: 5),
-                    Text('$duration days', style: AppTextStyles.bodySmall),
+                    Text('$duration ngày', style: AppTextStyles.bodySmall),
                     const SizedBox(width: 16),
                   ],
                   const Spacer(),

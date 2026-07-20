@@ -34,7 +34,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     if (!form.currentState!.validate() || date == null || !accepted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Complete the form and accept the policies.'),
+          content: Text('Vui lòng điền đầy đủ thông tin và đồng ý điều khoản.'),
         ),
       );
       return;
@@ -87,7 +87,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AppColors.surface,
     appBar: AppBar(
-      title: const Text('Complete booking'),
+      title: const Text('Đặt tour'),
       backgroundColor: Colors.white,
     ),
     body: Form(
@@ -97,12 +97,12 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         children: [
           // Header
           Text(
-            'Your next adventure\nstarts here.',
+            'Thông tin đặt tour',
             style: AppTextStyles.h1.copyWith(fontSize: 28),
           ),
           const SizedBox(height: 6),
           Text(
-            'Reserve your place for tour #${widget.tourId}.',
+            'Hoàn tất thông tin cho tour #${widget.tourId}.',
             style: AppTextStyles.bodySmall,
           ),
           const SizedBox(height: 24),
@@ -110,8 +110,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           // Step 1: Contact
           _SectionCard(
             step: '1',
-            title: 'Contact details',
-            subtitle: "We'll use this for booking updates",
+            title: 'Thông tin người đặt',
+            subtitle: 'Thông tin dùng để xác nhận booking',
             icon: Icons.person_outline_rounded,
             child: Column(
               children: [
@@ -147,8 +147,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           // Step 2: Date & travelers
           _SectionCard(
             step: '2',
-            title: 'Date & travelers',
-            subtitle: 'Choose when you go and who joins',
+            title: 'Ngày khởi hành & số khách',
+            subtitle: 'Chọn ngày đi và số lượng hành khách',
             icon: Icons.calendar_today_outlined,
             child: Column(
               children: [
@@ -203,7 +203,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                 ),
                 const SizedBox(height: 16),
                 _Counter(
-                  label: 'Adults',
+                  label: 'Người lớn',
                   hint: 'Age 12+',
                   value: adults,
                   min: 1,
@@ -211,14 +211,14 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                 ),
                 const Divider(height: 24),
                 _Counter(
-                  label: 'Children',
+                  label: 'Trẻ em',
                   hint: 'Ages 2–11',
                   value: children,
                   onChanged: (v) => setState(() => children = v),
                 ),
                 const Divider(height: 24),
                 _Counter(
-                  label: 'Infants',
+                  label: 'Em bé',
                   hint: 'Under 2 years',
                   value: infants,
                   onChanged: (v) => setState(() => infants = v),
@@ -231,8 +231,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           // Step 3: Coupon & policy
           _SectionCard(
             step: '3',
-            title: 'Coupon & policies',
-            subtitle: 'Apply a discount and review terms',
+            title: 'Mã giảm giá & điều khoản',
+            subtitle: 'Áp dụng ưu đãi và kiểm tra chính sách',
             icon: Icons.local_offer_outlined,
             child: Column(
               children: [
@@ -292,7 +292,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                 : const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('Continue to payment'),
+                      Text('Tiếp tục'),
                       SizedBox(width: 8),
                       Icon(Icons.arrow_forward_rounded, size: 18),
                     ],
