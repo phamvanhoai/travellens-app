@@ -12,14 +12,22 @@ Flutter client for TravelLens customers. Admin and staff features intentionally 
 
 ## Run
 
-The Android emulator cannot reach the host using `localhost`, so the default API URL is `http://10.0.2.2:8000/api`.
+The default API URL is the deployed TravelLens backend:
+
+`https://travellens-gamma.vercel.app/api`
 
 ```powershell
 flutter pub get
+flutter run
+```
+
+To use a different backend temporarily:
+
+```powershell
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000/api
 ```
 
-For a physical device, replace the host with the development computer's LAN address. For Flutter Web, use `http://localhost:4000/api`.
+For a physical device using a local backend, replace the host with the development computer's LAN address.
 
 ## Included customer modules
 
