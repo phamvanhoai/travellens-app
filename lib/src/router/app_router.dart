@@ -13,6 +13,7 @@ import '../screens/account_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/booking_screen.dart';
 import '../screens/entity_screens.dart';
+import '../screens/edit_profile_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/my_bookings_screen.dart';
 import '../screens/my_travel_stories_screen.dart';
@@ -197,13 +198,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ),
       ),
-      GoRoute(
-        path: '/profile',
-        builder: (_, _) => const EntityDetailScreen(
-          title: 'My profile',
-          endpoint: '/auth/profile',
-        ),
-      ),
+      GoRoute(path: '/profile', builder: (_, _) => const EditProfileScreen()),
       GoRoute(
         path: '/booking',
         builder: (_, s) => BookingScreen(
