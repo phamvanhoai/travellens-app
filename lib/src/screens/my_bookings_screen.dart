@@ -1,0 +1,987 @@
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+
+import '../config/app_config.dart';
+import '../core/network/api_client.dart';
+import '../design/app_colors.dart';
+import '../design/app_widgets.dart';
+
+class MyBookingsScreen extends ConsumerStatefulWidget {
+  const MyBookingsScreen({super.key});
+
+  @override
+  ConsumerState<MyBookingsScreen> createState() => _MyBookingsScreenState();
+}
+
+class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
+  static const _tabs = ['Tất cả', 'Sắp tới', 'Đã hoàn thành', 'Đã hủy'];
+  List<Map<String, dynamic>> _items = [];
+  final _searchController = TextEditingController();
+  Timer? _searchDebounce;
+  bool _loading = true;
+  String? _error;
+  int _tab = 0;
+  int _page = 1;
+  int _totalPages = 1;
+  int _totalItems = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final response = await ref
+          .read(dioProvider)
+          .get(
+            '/bookings',
+            queryParameters: {
+              'page': _page,
+              'limit': 5,
+              if (_searchController.text.trim().isNotEmpty)
+                'search': _searchController.text.trim(),
+            },
+          );
+      final body = response.data;
+      final pagination = _bookingPagination(body);
+      final pageItems = unwrapList(body, ['bookings']);
+      final items = await _loadBookingDetails(pageItems);
+      if (mounted) {
+        setState(() {
+          _items = items;
+          _totalPages = math.max(1, pagination.$1);
+          _totalItems = pagination.$2;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = apiError(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _loadBookingDetails(
+    List<Map<String, dynamic>> items,
+  ) async {
+    return Future.wait(
+      items.map((item) async {
+        final id = _bookingId(item);
+        if (id <= 0) return item;
+        try {
+          final response = await ref.read(dioProvider).get('/bookings/$id');
+          dynamic data = unwrap(response.data);
+          if (data is! Map) return item;
+          if (data['booking'] is Map) {
+            final detail = Map<String, dynamic>.from(data['booking']);
+            final passengers =
+                data['passengers'] ??
+                data['booking_details'] ??
+                data['bookingDetails'] ??
+                data['BookingDetail'] ??
+                data['BookingDetails'] ??
+                data['details'];
+            final review =
+                data['review'] ??
+                data['Review'] ??
+                data['tour_review'] ??
+                data['tourReview'];
+            if (passengers != null) detail['passengers'] = passengers;
+            if (review != null) detail['review'] = review;
+            return {...item, ...detail};
+          }
+          return {...item, ...Map<String, dynamic>.from(data)};
+        } catch (_) {
+          return item;
+        }
+      }),
+    );
+  }
+
+  void _search(String _) {
+    _searchDebounce?.cancel();
+    setState(() {});
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      _page = 1;
+      _load();
+    });
+  }
+
+  void _changePage(int value) {
+    if (value < 1 || value > _totalPages || value == _page) return;
+    setState(() => _page = value);
+    _load();
+  }
+
+  List<Map<String, dynamic>> get _visible => _items.where((item) {
+    return switch (_tab) {
+      1 => !_isCompleted(item) && !_isCancelled(item),
+      2 => _isCompleted(item),
+      3 => _isCancelled(item),
+      _ => true,
+    };
+  }).toList();
+
+  Future<void> _cancel(Map<String, dynamic> booking) async {
+    final id = _bookingId(booking);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hủy booking?'),
+        content: const Text(
+          'Yêu cầu hủy sẽ được xử lý theo chính sách của tour.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Đóng'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Hủy booking'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ref.read(dioProvider).patch('/bookings/$id/cancel');
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiError(e))));
+      }
+    }
+  }
+
+  Future<void> _review(Map<String, dynamic> booking) async {
+    final existing = _bookingReview(booking);
+    final result = await showDialog<_ReviewResult>(
+      context: context,
+      builder: (_) => _BookingReviewDialog(
+        tourName: _tourName(booking),
+        initialRating: int.tryParse('${existing?['rating'] ?? 5}') ?? 5,
+        initialComment: '${existing?['comment'] ?? ''}',
+        editing: existing != null,
+      ),
+    );
+    if (result == null) return;
+    try {
+      final id = _bookingId(booking);
+      final data = {'rating': result.rating, 'comment': result.comment};
+      dynamic response;
+      if (existing == null) {
+        try {
+          response = await ref
+              .read(dioProvider)
+              .post('/bookings/$id/review', data: data);
+        } on DioException catch (error) {
+          if (error.response?.statusCode != 409) rethrow;
+          response = await ref
+              .read(dioProvider)
+              .put('/bookings/$id/review', data: data);
+        }
+      } else {
+        response = await ref
+            .read(dioProvider)
+            .put('/bookings/$id/review', data: data);
+      }
+      dynamic saved = unwrap(response.data);
+      if (saved is Map && saved['review'] is Map) saved = saved['review'];
+      final review = saved is Map
+          ? Map<String, dynamic>.from(saved)
+          : <String, dynamic>{};
+      review['rating'] ??= result.rating;
+      review['comment'] ??= result.comment;
+      if (mounted) {
+        setState(() {
+          _items = _items.map((item) {
+            if (_bookingId(item) != id) return item;
+            return {...item, 'review': review};
+          }).toList();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              existing == null
+                  ? 'Đã gửi đánh giá tour.'
+                  : 'Đã cập nhật đánh giá.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiError(e))));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.white,
+    appBar: AppBar(
+      title: const Text('Booking của tôi'),
+      actions: [
+        IconButton(
+          onPressed: _loading ? null : _load,
+          icon: const Icon(Icons.refresh_rounded, size: 20),
+        ),
+        const SizedBox(width: 6),
+      ],
+    ),
+    body: RefreshIndicator(
+      onRefresh: _load,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 48,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
+                itemCount: _tabs.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (_, index) => _BookingTab(
+                  label: _tabs[index],
+                  selected: _tab == index,
+                  onTap: () => setState(() => _tab = index),
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
+              child: SizedBox(
+                height: 44,
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: _search,
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: 'Tìm mã booking, tên tour...',
+                    prefixIcon: const Icon(Icons.search_rounded, size: 19),
+                    suffixIcon: _searchController.text.isEmpty
+                        ? null
+                        : IconButton(
+                            onPressed: () {
+                              _searchController.clear();
+                              _page = 1;
+                              _load();
+                            },
+                            icon: const Icon(Icons.close_rounded, size: 17),
+                          ),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (_loading)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+              sliver: SliverList.separated(
+                itemCount: 5,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (_, _) => const _BookingSkeleton(),
+              ),
+            )
+          else if (_error != null)
+            SliverFillRemaining(
+              child: AppErrorState(error: _error!, onRetry: _load),
+            )
+          else if (_visible.isEmpty)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: AppEmptyState(
+                icon: Icons.card_travel_outlined,
+                title: 'Chưa có booking',
+                subtitle: 'Các tour bạn đặt sẽ xuất hiện tại đây.',
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+              sliver: SliverList.separated(
+                itemCount: _visible.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (_, index) {
+                  final booking = _visible[index];
+                  return _BookingCard(
+                    booking: booking,
+                    onPay: () => context.push(
+                      '/payment/checkout?bookingId=${_bookingId(booking)}',
+                    ),
+                    onCancel: () => _cancel(booking),
+                    onReview: () => _review(booking),
+                  );
+                },
+              ),
+            ),
+          if (!_loading && _error == null && _totalPages > 1)
+            SliverToBoxAdapter(
+              child: _BookingPagination(
+                page: _page,
+                totalPages: _totalPages,
+                totalItems: _totalItems,
+                onChanged: _changePage,
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ReviewResult {
+  const _ReviewResult(this.rating, this.comment);
+  final int rating;
+  final String comment;
+}
+
+class _BookingReviewDialog extends StatefulWidget {
+  const _BookingReviewDialog({
+    required this.tourName,
+    required this.initialRating,
+    required this.initialComment,
+    required this.editing,
+  });
+  final String tourName;
+  final int initialRating;
+  final String initialComment;
+  final bool editing;
+
+  @override
+  State<_BookingReviewDialog> createState() => _BookingReviewDialogState();
+}
+
+class _BookingReviewDialogState extends State<_BookingReviewDialog> {
+  late final TextEditingController _comment;
+  late int _rating;
+  String? _commentError;
+
+  @override
+  void initState() {
+    super.initState();
+    _rating = widget.initialRating;
+    _comment = TextEditingController(text: widget.initialComment);
+  }
+
+  @override
+  void dispose() {
+    _comment.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = _comment.text.trim();
+    if (value.isEmpty) {
+      setState(() => _commentError = 'Vui lòng nhập nội dung đánh giá.');
+      return;
+    }
+    Navigator.of(context).pop(_ReviewResult(_rating, value));
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.editing ? 'Sửa đánh giá' : 'Đánh giá tour'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.tourName,
+          style: const TextStyle(fontSize: 12, color: AppColors.muted),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            5,
+            (index) => IconButton(
+              onPressed: () => setState(() => _rating = index + 1),
+              icon: Icon(
+                Icons.star_rounded,
+                color: index < _rating ? AppColors.gold : AppColors.border,
+              ),
+            ),
+          ),
+        ),
+        TextField(
+          controller: _comment,
+          minLines: 3,
+          maxLines: 5,
+          onChanged: (_) {
+            if (_commentError != null) setState(() => _commentError = null);
+          },
+          decoration: InputDecoration(
+            hintText: 'Chia sẻ trải nghiệm của bạn...',
+            errorText: _commentError,
+          ),
+        ),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Đóng'),
+      ),
+      FilledButton(onPressed: _submit, child: const Text('Gửi đánh giá')),
+    ],
+  );
+}
+
+class _BookingPagination extends StatelessWidget {
+  const _BookingPagination({
+    required this.page,
+    required this.totalPages,
+    required this.totalItems,
+    required this.onChanged,
+  });
+  final int page;
+  final int totalPages;
+  final int totalItems;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(18, 2, 18, 24),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            '$totalItems booking · Trang $page/$totalPages',
+            style: const TextStyle(fontSize: 10, color: AppColors.muted),
+          ),
+        ),
+        _PageButton(
+          icon: Icons.chevron_left_rounded,
+          enabled: page > 1,
+          onTap: () => onChanged(page - 1),
+        ),
+        const SizedBox(width: 7),
+        Container(
+          width: 34,
+          height: 34,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.brand,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Text(
+            '$page',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(width: 7),
+        _PageButton(
+          icon: Icons.chevron_right_rounded,
+          enabled: page < totalPages,
+          onTap: () => onChanged(page + 1),
+        ),
+      ],
+    ),
+  );
+}
+
+class _PageButton extends StatelessWidget {
+  const _PageButton({
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
+  });
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 34,
+    height: 34,
+    child: OutlinedButton(
+      onPressed: enabled ? onTap : null,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(0, 34),
+        padding: EdgeInsets.zero,
+      ),
+      child: Icon(icon, size: 17),
+    ),
+  );
+}
+
+class _BookingTab extends StatelessWidget {
+  const _BookingTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: selected ? AppColors.brandDark : Colors.white,
+    borderRadius: BorderRadius.circular(17),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(17),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(
+            color: selected ? AppColors.brandDark : AppColors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: selected ? Colors.white : AppColors.muted,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _BookingCard extends StatelessWidget {
+  const _BookingCard({
+    required this.booking,
+    required this.onPay,
+    required this.onCancel,
+    required this.onReview,
+  });
+  final Map<String, dynamic> booking;
+  final VoidCallback onPay;
+  final VoidCallback onCancel;
+  final VoidCallback onReview;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = _bookingStatus(booking);
+    final payment = _paymentStatus(booking);
+    final cancelled = _isCancelled(booking);
+    final completed = _isCompleted(booking);
+    final paid = payment == 'paid';
+    final canPay = _canPay(booking);
+    final canCancel = _canCancel(booking);
+    final canReview = _canReview(booking);
+    final image = AppConfig.assetUrl(_bookingImage(booking));
+    final date = _bookingDate(booking);
+    final passengers = _passengers(booking).length;
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Text(
+                _bookingCode(booking),
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.muted,
+                ),
+              ),
+              const Spacer(),
+              _StatusChip(
+                status: cancelled
+                    ? status
+                    : completed
+                    ? 'completed'
+                    : status == 'confirmed'
+                    ? 'confirmed'
+                    : paid
+                    ? 'paid'
+                    : status,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(9),
+                child: SizedBox(
+                  width: 72,
+                  height: 64,
+                  child: image.isEmpty
+                      ? const ColoredBox(
+                          color: AppColors.borderLight,
+                          child: Icon(
+                            Icons.landscape_outlined,
+                            color: AppColors.subtle,
+                          ),
+                        )
+                      : CachedNetworkImage(imageUrl: image, fit: BoxFit.cover),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _tourName(booking),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.calendar_month_outlined,
+                          size: 13,
+                          color: AppColors.subtle,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(_formatDate(date), style: _metaStyle),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.groups_outlined,
+                          size: 13,
+                          color: AppColors.subtle,
+                        ),
+                        const SizedBox(width: 4),
+                        Text('$passengers khách', style: _metaStyle),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    _vnd(_bookingAmount(booking)),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (canReview)
+                    _SmallAction(
+                      label: _bookingReview(booking) == null
+                          ? 'Đánh giá'
+                          : 'Sửa đánh giá',
+                      icon: Icons.star_outline_rounded,
+                      onTap: onReview,
+                    )
+                  else if (canPay)
+                    _SmallAction(
+                      label: 'Thanh toán',
+                      icon: Icons.qr_code_rounded,
+                      filled: true,
+                      onTap: onPay,
+                    )
+                  else if (canCancel)
+                    _SmallAction(
+                      label: 'Hủy',
+                      icon: Icons.close_rounded,
+                      onTap: onCancel,
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.status});
+  final String status;
+  @override
+  Widget build(BuildContext context) {
+    final cancelled = const {
+      'cancelled',
+      'canceled',
+      'expired',
+      'refunded',
+      'rejected',
+    }.contains(status);
+    final color =
+        status == 'completed' || status == 'paid' || status == 'confirmed'
+        ? AppColors.success
+        : cancelled
+        ? AppColors.error
+        : AppColors.gold;
+    final label = status == 'completed'
+        ? 'Đã hoàn thành'
+        : status == 'confirmed'
+        ? 'Đã xác nhận'
+        : status == 'paid'
+        ? 'Đã thanh toán'
+        : cancelled
+        ? 'Đã hủy'
+        : status == 'cancel_pending'
+        ? 'Đang hủy'
+        : 'Sắp tới';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+class _SmallAction extends StatelessWidget {
+  const _SmallAction({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.filled = false,
+  });
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 32,
+    child: filled
+        ? FilledButton.icon(
+            onPressed: onTap,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 32),
+              padding: const EdgeInsets.symmetric(horizontal: 9),
+            ),
+            icon: Icon(icon, size: 13),
+            label: Text(label, style: const TextStyle(fontSize: 9)),
+          )
+        : OutlinedButton.icon(
+            onPressed: onTap,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(0, 32),
+              padding: const EdgeInsets.symmetric(horizontal: 9),
+            ),
+            icon: Icon(icon, size: 13),
+            label: Text(label, style: const TextStyle(fontSize: 9)),
+          ),
+  );
+}
+
+const _metaStyle = TextStyle(fontSize: 9, color: AppColors.muted);
+int _bookingId(Map item) =>
+    int.tryParse('${item['booking_id'] ?? item['id'] ?? 0}') ?? 0;
+String _bookingCode(Map item) =>
+    '${item['booking_code'] ?? item['code'] ?? 'BK-${_bookingId(item)}'}';
+String _bookingStatus(Map item) =>
+    '${item['status'] ?? 'pending'}'.toLowerCase();
+
+bool _isCancelled(Map item) => const {
+  'cancel_pending',
+  'cancelled',
+  'canceled',
+  'expired',
+  'refunded',
+  'rejected',
+}.contains(_bookingStatus(item));
+
+bool _isCompleted(Map item) => _canReview(item);
+
+bool _canPay(Map item) {
+  if (_bookingAmount(item) <= 0) return false;
+  final status = _bookingStatus(item);
+  if (const {
+    'cancel_pending',
+    'cancelled',
+    'canceled',
+    'expired',
+    'refunded',
+    'completed',
+  }.contains(status)) {
+    return false;
+  }
+  return const {'unpaid', 'pending', 'failed'}.contains(_paymentStatus(item));
+}
+
+bool _canCancel(Map item) {
+  final status = _bookingStatus(item);
+  if (const {
+    'cancel_pending',
+    'cancelled',
+    'canceled',
+    'expired',
+    'refunded',
+    'completed',
+  }.contains(status)) {
+    return false;
+  }
+  final departure = _departureDate(item);
+  if (departure == null) return true;
+  return departure.difference(DateTime.now()).inHours > 24;
+}
+
+bool _canReview(Map item) {
+  final status = _bookingStatus(item);
+  if (const {
+    'cancel_pending',
+    'cancelled',
+    'canceled',
+    'expired',
+    'refunded',
+    'rejected',
+  }.contains(status)) {
+    return false;
+  }
+  final payment = _paymentStatus(item);
+  if (status != 'completed' && payment != 'paid' && payment != 'completed') {
+    return false;
+  }
+  if (status == 'completed') return true;
+  final departure = _departureDate(item);
+  return departure != null && !departure.isAfter(DateTime.now());
+}
+
+DateTime? _departureDate(Map item) {
+  final value = _bookingDate(item);
+  if (value == null || '$value'.isEmpty) return null;
+  return DateTime.tryParse('$value')?.toLocal();
+}
+
+String _tourName(Map item) {
+  final tour = item['tour_summary'] ?? item['tour'] ?? item['Tour'];
+  return '${item['tour_name'] ?? (tour is Map ? tour['name'] ?? tour['title'] : null) ?? 'Tour #${item['tour_id'] ?? ''}'}';
+}
+
+String? _bookingImage(Map item) {
+  final tour = item['tour_summary'] ?? item['tour'] ?? item['Tour'];
+  return item['thumbnail_url'] ??
+      (tour is Map
+          ? tour['thumbnail_url'] ?? tour['thumbnail'] ?? tour['image_url']
+          : null);
+}
+
+String _paymentStatus(Map item) {
+  final payment =
+      item['latest_payment'] ??
+      item['latestPayment'] ??
+      item['payment'] ??
+      item['Payment'] ??
+      ((item['payments'] is List && item['payments'].isNotEmpty)
+          ? item['payments'].first
+          : null);
+  return '${payment is Map ? payment['status'] ?? payment['payment_status'] : item['payment_status'] ?? 'unpaid'}'
+      .toLowerCase();
+}
+
+List _passengers(Map item) {
+  final value =
+      item['passengers'] ??
+      item['booking_details'] ??
+      item['bookingDetails'] ??
+      item['BookingDetail'] ??
+      item['BookingDetails'] ??
+      item['details'];
+  return value is List ? value : const [];
+}
+
+Map? _bookingReview(Map item) {
+  final value =
+      item['review'] ??
+      item['Review'] ??
+      item['tour_review'] ??
+      item['tourReview'] ??
+      ((item['reviews'] is List && item['reviews'].isNotEmpty)
+          ? item['reviews'].first
+          : null) ??
+      ((item['Reviews'] is List && item['Reviews'].isNotEmpty)
+          ? item['Reviews'].first
+          : null);
+  return value is Map ? value : null;
+}
+
+double _bookingAmount(Map item) =>
+    double.tryParse(
+      '${item['total_amount'] ?? item['final_amount'] ?? item['paid_amount'] ?? item['amount'] ?? item['total_price'] ?? 0}',
+    ) ??
+    0;
+dynamic _bookingDate(Map item) =>
+    item['preferred_arrival_time'] ??
+    item['departure_at'] ??
+    item['arrival_time'] ??
+    item['travel_date'];
+String _formatDate(dynamic value) {
+  final date = DateTime.tryParse('${value ?? ''}');
+  return date == null
+      ? 'Đang cập nhật'
+      : DateFormat('dd/MM/yyyy').format(date.toLocal());
+}
+
+String _vnd(double value) =>
+    '${NumberFormat.decimalPattern('vi').format(value)}đ';
+
+(int, int) _bookingPagination(dynamic body) {
+  final root = body is Map ? body : const {};
+  final data = root['data'] is Map ? root['data'] as Map : const {};
+  final raw =
+      root['meta'] ?? root['pagination'] ?? data['meta'] ?? data['pagination'];
+  if (raw is! Map) return (1, 0);
+  final pages =
+      int.tryParse('${raw['total_pages'] ?? raw['totalPages'] ?? 1}') ?? 1;
+  final total = int.tryParse('${raw['total'] ?? 0}') ?? 0;
+  return (pages, total);
+}

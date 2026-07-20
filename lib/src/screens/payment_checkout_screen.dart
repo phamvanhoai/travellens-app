@@ -109,8 +109,30 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
           .read(dioProvider)
           .get('/payments/$_paymentId/status');
       final update = _unwrapPayment(response.data);
+      final paymentStatus =
+          '${update['status'] ?? update['payment_status'] ?? ''}'.toLowerCase();
+      if (paymentStatus.isEmpty || paymentStatus == 'pending') {
+        try {
+          final bookingResponse = await ref
+              .read(dioProvider)
+              .get('/bookings/${widget.bookingId}');
+          final bookingStatus = _bookingPaymentStatus(bookingResponse.data);
+          if (bookingStatus.isNotEmpty && bookingStatus != 'pending') {
+            update['status'] = bookingStatus;
+          }
+        } catch (_) {}
+      }
       if (!mounted) return;
-      setState(() => _payment = {...?_payment, ...update});
+      setState(() {
+        final merged = {...?_payment, ...update};
+        final nextStatus =
+            update['status'] ??
+            update['payment_status'] ??
+            merged['status'] ??
+            merged['payment_status'];
+        if (nextStatus != null) merged['status'] = nextStatus;
+        _payment = merged;
+      });
       if (_status != 'pending') _statusTimer?.cancel();
       if (notify) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -488,11 +510,22 @@ Map<String, dynamic> _unwrapPayment(dynamic body) {
   dynamic value = unwrap(body);
   if (value is Map && value['payment'] is Map) {
     final payment = Map<String, dynamic>.from(value['payment']);
-    if (value['status'] != null) payment['status'] = value['status'];
+    final status =
+        value['status'] ??
+        value['payment_status'] ??
+        payment['status'] ??
+        payment['payment_status'];
+    if (status != null) payment['status'] = status;
     return payment;
   }
   if (value is String) return {'status': value};
-  return value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
+  if (value is Map) {
+    final payment = Map<String, dynamic>.from(value);
+    final status = payment['status'] ?? payment['payment_status'];
+    if (status != null) payment['status'] = status;
+    return payment;
+  }
+  return <String, dynamic>{};
 }
 
 String _statusLabel(String status) => switch (status) {
@@ -502,6 +535,33 @@ String _statusLabel(String status) => switch (status) {
   'refunded' => 'Hoàn tiền',
   _ => 'Đang chờ',
 };
+
+String _bookingPaymentStatus(dynamic body) {
+  dynamic value = unwrap(body);
+  if (value is Map && value['booking'] is Map) value = value['booking'];
+  if (value is! Map) return '';
+  final latest = value['latest_payment'] ?? value['latestPayment'];
+  final payment =
+      latest ??
+      value['payment'] ??
+      value['Payment'] ??
+      ((value['payments'] is List && value['payments'].isNotEmpty)
+          ? value['payments'].first
+          : null) ??
+      ((value['Payments'] is List && value['Payments'].isNotEmpty)
+          ? value['Payments'].first
+          : null);
+  final paymentStatus = payment is Map
+      ? payment['status'] ?? payment['payment_status']
+      : null;
+  final direct =
+      paymentStatus ?? value['payment_status'] ?? value['paymentStatus'];
+  if (direct != null && '$direct'.isNotEmpty) return '$direct'.toLowerCase();
+  final bookingStatus = '${value['status'] ?? ''}'.toLowerCase();
+  return bookingStatus == 'confirmed' || bookingStatus == 'completed'
+      ? 'paid'
+      : '';
+}
 
 String _countdown(Duration value) =>
     '${value.inMinutes.remainder(60).toString().padLeft(2, '0')}:'

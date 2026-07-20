@@ -14,7 +14,9 @@ import '../screens/auth_screen.dart';
 import '../screens/booking_screen.dart';
 import '../screens/entity_screens.dart';
 import '../screens/home_screen.dart';
+import '../screens/my_bookings_screen.dart';
 import '../screens/payment_checkout_screen.dart';
+import '../screens/payment_history_screen.dart';
 import '../screens/reference_screens.dart';
 import '../widgets/app_shell.dart';
 
@@ -127,29 +129,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ),
       ),
-      GoRoute(
-        path: '/bookings',
-        builder: (_, _) => const EntityListScreen(
-          config: EntityConfig(
-            title: 'My bookings',
-            endpoint: '/bookings',
-            keys: ['bookings'],
-            detailBase: '',
-            auth: true,
-          ),
-        ),
-      ),
+      GoRoute(path: '/bookings', builder: (_, _) => const MyBookingsScreen()),
       GoRoute(
         path: '/payments',
-        builder: (_, _) => const EntityListScreen(
-          config: EntityConfig(
-            title: 'Payments',
-            endpoint: '/payments',
-            keys: ['payments'],
-            detailBase: '',
-            auth: true,
-          ),
-        ),
+        builder: (_, _) => const PaymentHistoryScreen(),
       ),
       GoRoute(
         path: '/reviews',
