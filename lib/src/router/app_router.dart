@@ -15,6 +15,7 @@ import '../screens/booking_screen.dart';
 import '../screens/blocked_users_screen.dart';
 import '../screens/entity_screens.dart';
 import '../screens/edit_profile_screen.dart';
+import '../screens/forgot_password_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/group_trips_screen.dart';
 import '../screens/group_trip_detail_screen.dart';
@@ -65,7 +66,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (state.uri.path == '/splash')
         return auth.authenticated ? '/home' : '/home';
       final isAuth =
-          state.uri.path == '/login' || state.uri.path == '/register';
+          state.uri.path == '/login' ||
+          state.uri.path == '/register' ||
+          state.uri.path == '/forgot-password' ||
+          state.uri.path == '/reset-password';
       if (isAuth && auth.authenticated) return '/home';
       if (protected.any((p) => state.uri.path.startsWith(p)) &&
           !auth.authenticated)
@@ -85,6 +89,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/register',
         builder: (_, _) => const AuthScreen(register: true),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (_, _) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (_, state) => ForgotPasswordScreen(
+          initialToken: state.uri.queryParameters['token'],
+        ),
       ),
       ShellRoute(
         builder: (_, _, child) => AppShell(child: child),

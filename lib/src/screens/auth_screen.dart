@@ -334,7 +334,26 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                   keyboardType: TextInputType.emailAddress,
                                 ),
                                 const SizedBox(height: 13),
-                                _FieldLabel('Password'),
+                                Row(
+                                  children: [
+                                    const _FieldLabel('Password'),
+                                    if (!widget.register) ...[
+                                      const Spacer(),
+                                      GestureDetector(
+                                        onTap: () =>
+                                            context.push('/forgot-password'),
+                                        child: const Text(
+                                          'Forgot password?',
+                                          style: TextStyle(
+                                            color: AppColors.brand,
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
                                 const SizedBox(height: 6),
                                 _AuthField(
                                   controller: password,

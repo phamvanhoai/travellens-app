@@ -270,11 +270,6 @@ class _View360ScreenState extends ConsumerState<View360Screen> {
     );
   }
 
-  void move(int d) {
-    if (scenes.isNotEmpty)
-      select((sceneIndex + d + scenes.length) % scenes.length);
-  }
-
   @override
   Widget build(BuildContext context) {
     if (loading)
@@ -391,40 +386,10 @@ class _View360ScreenState extends ConsumerState<View360Screen> {
                             ),
                     ),
                     const Spacer(),
-                    if (s.audioUrl.isNotEmpty) ...[
-                      _Button(
-                        icon: audioPlaying
-                            ? Icons.pause_circle_outline
-                            : Icons.headphones,
-                        active: audioPlaying,
-                        onTap: _toggleAudio,
-                      ),
-                      const SizedBox(width: 8),
-                      _Button(
-                        icon: muted ? Icons.volume_off : Icons.volume_up,
-                        active: muted,
-                        onTap: _toggleMute,
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                    _Button(
-                      icon: gyro
-                          ? Icons.screen_rotation
-                          : Icons.screen_lock_rotation,
-                      active: gyro,
-                      onTap: () => setState(() => gyro = !gyro),
-                    ),
-                    const SizedBox(width: 8),
-                    _Button(
-                      icon: rotate ? Icons.pause : Icons.play_arrow,
-                      active: rotate,
-                      onTap: () => setState(() => rotate = !rotate),
-                    ),
-                    const SizedBox(width: 8),
                     _Button(
                       icon: showInfo
-                          ? Icons.layers_clear_outlined
-                          : Icons.layers_outlined,
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
                       onTap: () => setState(() => showInfo = !showInfo),
                     ),
                   ],
@@ -437,112 +402,178 @@ class _View360ScreenState extends ConsumerState<View360Screen> {
             Positioned(
               left: 16,
               right: 16,
-              bottom: 20,
-              child: SafeArea(
-                top: false,
+              top: MediaQuery.paddingOf(context).top + 62,
+              child: IgnorePointer(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 7,
-                      children: [
-                        _Badge(
-                          Icons.threesixty,
-                          'Scene ${sceneIndex + 1}/${scenes.length}',
-                        ),
-                        _Badge(Icons.translate, s.language),
-                        if (s.locationId > 0)
-                          _Badge(
-                            Icons.location_on_outlined,
-                            'Location #${s.locationId}',
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      s.title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        height: 1.08,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    if (s.description.isNotEmpty) ...[
-                      const SizedBox(height: 7),
-                      Text(
-                        s.description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFFDCE5ED),
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                    if (s.images.length > 1) ...[
-                      const SizedBox(height: 12),
-                      Row(
-                        children: List.generate(
-                          s.images.length,
-                          (i) => GestureDetector(
-                            onTap: () => setState(() {
-                              imageIndex = i;
-                              imageLoading = true;
-                            }),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              margin: const EdgeInsets.only(right: 7),
-                              width: i == imageIndex ? 34 : 16,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: i == imageIndex
-                                    ? Colors.white
-                                    : Colors.white38,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 15),
                     Row(
                       children: [
-                        IconButton.filledTonal(
-                          onPressed: () => move(-1),
-                          icon: const Icon(Icons.chevron_left),
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.black54,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(48, 48),
+                        Container(
+                          width: 9,
+                          height: 9,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF60A5FA),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(color: Colors.white70, blurRadius: 5),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: openScenes,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: const Color(0xFF0F172A),
-                              minimumSize: const Size.fromHeight(48),
-                            ),
-                            icon: const Icon(Icons.view_carousel_outlined),
-                            label: Text('${scenes.length} scenes'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        IconButton.filledTonal(
-                          onPressed: () => move(1),
-                          icon: const Icon(Icons.chevron_right),
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.black54,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(48, 48),
+                        const SizedBox(width: 6),
+                        Text(
+                          s.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                            shadows: [
+                              Shadow(color: Colors.black, blurRadius: 8),
+                            ],
                           ),
                         ),
                       ],
+                    ),
+                    if (s.description.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 15),
+                        child: Text(
+                          s.description,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 9,
+                            shadows: [
+                              Shadow(color: Colors.black, blurRadius: 6),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          if (showInfo)
+            Positioned(
+              left: 10,
+              right: 10,
+              bottom: 8,
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _BottomControl(
+                          icon: Icons.photo_library_outlined,
+                          label: 'Cảnh',
+                          onTap: openScenes,
+                        ),
+                        const SizedBox(width: 14),
+                        _BottomControl(
+                          icon: rotate
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                          label: 'Tự động',
+                          active: rotate,
+                          onTap: () => setState(() => rotate = !rotate),
+                        ),
+                        const SizedBox(width: 14),
+                        _BottomControl(
+                          icon: gyro
+                              ? Icons.screen_rotation_rounded
+                              : Icons.screen_lock_rotation_rounded,
+                          label: 'Con quay',
+                          active: gyro,
+                          onTap: () => setState(() => gyro = !gyro),
+                        ),
+                        const SizedBox(width: 14),
+                        _BottomControl(
+                          icon: muted
+                              ? Icons.volume_off_rounded
+                              : Icons.volume_up_rounded,
+                          label: 'Âm thanh',
+                          active: !muted && s.audioUrl.isNotEmpty,
+                          onTap: s.audioUrl.isEmpty ? () {} : _toggleMute,
+                        ),
+                        const SizedBox(width: 14),
+                        _BottomControl(
+                          icon: audioPlaying
+                              ? Icons.pause_circle_outline_rounded
+                              : Icons.headphones_rounded,
+                          label: 'Thuyết minh',
+                          active: audioPlaying,
+                          onTap: s.audioUrl.isEmpty ? () {} : _toggleAudio,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 11),
+                    SizedBox(
+                      height: 58,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: scenes.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 6),
+                        itemBuilder: (_, i) {
+                          final selected = i == sceneIndex;
+                          return GestureDetector(
+                            onTap: () => select(i),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              width: 72,
+                              clipBehavior: Clip.antiAlias,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(9),
+                                border: Border.all(
+                                  color: selected
+                                      ? Colors.white
+                                      : Colors.white38,
+                                  width: selected ? 2 : 1,
+                                ),
+                              ),
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  CachedNetworkImage(
+                                    imageUrl: scenes[i].images.first.url,
+                                    fit: BoxFit.cover,
+                                  ),
+                                  const DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Colors.transparent,
+                                          Colors.black54,
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    left: 5,
+                                    bottom: 4,
+                                    child: Text(
+                                      '${i + 1}'.padLeft(2, '0'),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
@@ -551,14 +582,14 @@ class _View360ScreenState extends ConsumerState<View360Screen> {
           Positioned(
             left: 0,
             right: 0,
-            top: MediaQuery.paddingOf(context).top + 72,
+            top: MediaQuery.paddingOf(context).top + 122,
             child: const IgnorePointer(
               child: Center(
                 child: Text(
-                  'Drag to look around · Pinch to zoom',
+                  'Kéo để quan sát · Chụm để thu phóng',
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: 11,
+                    fontSize: 9,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -681,51 +712,74 @@ class _View360ScreenState extends ConsumerState<View360Screen> {
 }
 
 class _Button extends StatelessWidget {
-  const _Button({required this.icon, required this.onTap, this.active = false});
+  const _Button({required this.icon, required this.onTap});
   final IconData icon;
   final VoidCallback onTap;
-  final bool active;
   @override
   Widget build(BuildContext context) => Material(
-    color: active ? const Color(0xFF0891B2) : Colors.black45,
+    color: Colors.black45,
     shape: const CircleBorder(),
     child: InkWell(
       customBorder: const CircleBorder(),
       onTap: onTap,
       child: SizedBox.square(
-        dimension: 46,
-        child: Icon(icon, color: Colors.white, size: 21),
+        dimension: 40,
+        child: Icon(icon, color: Colors.white, size: 19),
       ),
     ),
   );
 }
 
-class _Badge extends StatelessWidget {
-  const _Badge(this.icon, this.text);
+class _BottomControl extends StatelessWidget {
+  const _BottomControl({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.active = false,
+  });
   final IconData icon;
-  final String text;
+  final String label;
+  final VoidCallback onTap;
+  final bool active;
+
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-    decoration: BoxDecoration(
-      color: Colors.black45,
-      borderRadius: BorderRadius.circular(9),
-      border: Border.all(color: Colors.white24),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: Colors.white70, size: 14),
-        const SizedBox(width: 5),
-        Text(
-          text,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    behavior: HitTestBehavior.opaque,
+    child: SizedBox(
+      width: 48,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: active ? Colors.white : Colors.black54,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white54),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: active ? const Color(0xFF0F172A) : Colors.white,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 3),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 7.5,
+              fontWeight: FontWeight.w700,
+              shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
