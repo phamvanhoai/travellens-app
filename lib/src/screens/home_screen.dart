@@ -70,28 +70,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _load() async {
     if (mounted) setState(() => _loading = true);
+    final results = await Future.wait([_fetchDestinations(), _fetchTours()]);
+    if (!mounted) return;
+    setState(() {
+      _destinations = results[0];
+      _tours = results[1];
+      _loading = false;
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchDestinations() async {
     try {
-      final results = await Future.wait([
-        ref
-            .read(dioProvider)
-            .get('/destinations', queryParameters: {'page': 1, 'limit': 6}),
-        ref
-            .read(dioProvider)
-            .get('/tours', queryParameters: {'page': 1, 'limit': 6}),
-      ]);
-      if (!mounted) return;
-      setState(() {
-        _destinations = unwrapList(results[0].data, ['destinations']);
-        _tours = unwrapList(results[1].data, ['tours']);
-      });
+      final response = await ref
+          .read(dioProvider)
+          .get(
+            '/travel-destinations',
+            queryParameters: {'page': 1, 'limit': 6},
+          );
+      return unwrapList(response.data, ['destinations', 'travel_destinations']);
     } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _destinations = [];
-        _tours = [];
-      });
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchTours() async {
+    try {
+      final response = await ref
+          .read(dioProvider)
+          .get('/tours', queryParameters: {'page': 1, 'limit': 6});
+      return unwrapList(response.data, ['tours']);
+    } catch (_) {
+      return [];
     }
   }
 
