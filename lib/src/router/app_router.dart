@@ -16,6 +16,8 @@ import '../screens/blocked_users_screen.dart';
 import '../screens/entity_screens.dart';
 import '../screens/edit_profile_screen.dart';
 import '../screens/home_screen.dart';
+import '../screens/group_trips_screen.dart';
+import '../screens/invitations_screen.dart';
 import '../screens/my_bookings_screen.dart';
 import '../screens/my_travel_stories_screen.dart';
 import '../screens/travel_map_screen.dart';
@@ -159,15 +161,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/group-trips',
-        builder: (_, _) => const EntityListScreen(
-          config: EntityConfig(
-            title: 'Group trips',
-            endpoint: '/group-trips',
-            keys: ['group_trips'],
-            detailBase: '/group-trips',
-            auth: true,
-          ),
-        ),
+        builder: (_, _) => const GroupTripsScreen(),
       ),
       GoRoute(
         path: '/group-trips/:id',
@@ -178,15 +172,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/invitations',
-        builder: (_, _) => const EntityListScreen(
-          config: EntityConfig(
-            title: 'Invitations',
-            endpoint: '/group-trip-invites',
-            keys: ['invites', 'invitations'],
-            detailBase: '',
-            auth: true,
-          ),
-        ),
+        builder: (_, _) => const InvitationsScreen(),
       ),
       GoRoute(
         path: '/blocked-users',
