@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../config/app_config.dart';
 import '../core/network/api_client.dart';
@@ -537,6 +539,23 @@ class _ItineraryTab extends ConsumerStatefulWidget {
 
 class _ItineraryTabState extends ConsumerState<_ItineraryTab> {
   bool _working = false;
+  bool _loadingRoute = true;
+  List<_RoutePoint> _route = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveRoute();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ItineraryTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_itinerarySignature(oldWidget.trip) !=
+        _itinerarySignature(widget.trip)) {
+      _resolveRoute();
+    }
+  }
 
   List<Map<String, dynamic>> get _items {
     final items =
@@ -548,6 +567,51 @@ class _ItineraryTabState extends ConsumerState<_ItineraryTab> {
             .toList();
     items.sort(_compareItinerary);
     return items;
+  }
+
+  Future<void> _resolveRoute() async {
+    if (mounted) setState(() => _loadingRoute = true);
+    final points = <_RoutePoint>[];
+    for (final item in _items) {
+      var latitude = double.tryParse('${item['latitude'] ?? ''}');
+      var longitude = double.tryParse('${item['longitude'] ?? ''}');
+      var place = '${item['custom_location'] ?? item['location_name'] ?? ''}';
+      final locationId = _int(item['location_id']);
+      if ((latitude == null || longitude == null) && locationId > 0) {
+        try {
+          final response = await ref
+              .read(dioProvider)
+              .get('/locations/$locationId');
+          final location = _unwrapLocation(response.data);
+          latitude = double.tryParse('${location['latitude'] ?? ''}');
+          longitude = double.tryParse('${location['longitude'] ?? ''}');
+          place = '${location['name'] ?? location['title'] ?? place}';
+        } catch (_) {}
+      }
+      if (latitude == null ||
+          longitude == null ||
+          !latitude.isFinite ||
+          !longitude.isFinite ||
+          latitude < -90 ||
+          latitude > 90 ||
+          longitude < -180 ||
+          longitude > 180) {
+        continue;
+      }
+      points.add(
+        _RoutePoint(
+          position: LatLng(latitude, longitude),
+          title: '${item['title'] ?? 'Hoạt động'}',
+          place: place.trim().isEmpty ? _itineraryLocation(item) : place,
+          time: _time(item['start_time']),
+        ),
+      );
+    }
+    if (!mounted) return;
+    setState(() {
+      _route = points;
+      _loadingRoute = false;
+    });
   }
 
   Future<void> _openForm([Map<String, dynamic>? item]) async {
@@ -638,6 +702,8 @@ class _ItineraryTabState extends ConsumerState<_ItineraryTab> {
           ],
         ),
         const SizedBox(height: 14),
+        _ItineraryRoutePreview(points: _route, loading: _loadingRoute),
+        const SizedBox(height: 16),
         if (items.isEmpty)
           const Padding(
             padding: EdgeInsets.only(top: 55),
@@ -681,6 +747,156 @@ class _ItineraryTabState extends ConsumerState<_ItineraryTab> {
     }
     return widgets;
   }
+}
+
+class _RoutePoint {
+  const _RoutePoint({
+    required this.position,
+    required this.title,
+    required this.place,
+    required this.time,
+  });
+  final LatLng position;
+  final String title, place, time;
+}
+
+class _ItineraryRoutePreview extends StatelessWidget {
+  const _ItineraryRoutePreview({required this.points, required this.loading});
+  final List<_RoutePoint> points;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Row(
+        children: [
+          Icon(Icons.map_outlined, size: 15, color: AppColors.brand),
+          SizedBox(width: 6),
+          Text(
+            'Xem trước tuyến đường',
+            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Container(
+        height: points.isEmpty ? 112 : 184,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: AppColors.borderLight,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: AppColors.borderLight),
+        ),
+        child: loading
+            ? const AppShimmerBox(
+                width: double.infinity,
+                height: 184,
+                borderRadius: 13,
+              )
+            : points.isEmpty
+            ? const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    'Chưa có điểm lịch trình với tọa độ hợp lệ để hiển thị bản đồ.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 9.5, color: AppColors.muted),
+                  ),
+                ),
+              )
+            : FlutterMap(
+                key: ValueKey(
+                  points
+                      .map(
+                        (point) =>
+                            '${point.position.latitude},${point.position.longitude}',
+                      )
+                      .join('|'),
+                ),
+                options: MapOptions(
+                  initialCenter: points.first.position,
+                  initialZoom: points.length == 1 ? 13 : 10,
+                  initialCameraFit: points.length > 1
+                      ? CameraFit.bounds(
+                          bounds: LatLngBounds.fromPoints(
+                            points.map((point) => point.position).toList(),
+                          ),
+                          padding: const EdgeInsets.all(30),
+                          maxZoom: 14,
+                        )
+                      : null,
+                  minZoom: 3,
+                  maxZoom: 18,
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.travellens.app',
+                  ),
+                  if (points.length > 1)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: points
+                              .map((point) => point.position)
+                              .toList(),
+                          color: AppColors.brand,
+                          strokeWidth: 3.5,
+                          pattern: StrokePattern.dashed(segments: const [9, 6]),
+                        ),
+                      ],
+                    ),
+                  MarkerLayer(
+                    markers: [
+                      for (var index = 0; index < points.length; index++)
+                        Marker(
+                          point: points[index].position,
+                          width: 34,
+                          height: 40,
+                          alignment: Alignment.topCenter,
+                          child: Tooltip(
+                            message:
+                                '${index + 1}. ${points[index].title}\n${points[index].place} · ${points[index].time}',
+                            child: Stack(
+                              alignment: Alignment.topCenter,
+                              children: [
+                                const Icon(
+                                  Icons.location_on_rounded,
+                                  size: 34,
+                                  color: AppColors.brand,
+                                  shadows: [
+                                    Shadow(color: Colors.white, blurRadius: 3),
+                                  ],
+                                ),
+                                Positioned(
+                                  top: 6,
+                                  child: Text(
+                                    '${index + 1}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  RichAttributionWidget(
+                    attributions: const [
+                      TextSourceAttribution('OpenStreetMap contributors'),
+                    ],
+                  ),
+                ],
+              ),
+      ),
+    ],
+  );
 }
 
 class _ItineraryDayHeader extends StatelessWidget {
@@ -1330,6 +1546,7 @@ class _InvitesTab extends ConsumerStatefulWidget {
 class _InvitesTabState extends ConsumerState<_InvitesTab> {
   final _email = TextEditingController();
   bool _sending = false;
+  int? _cancelingId;
 
   @override
   void dispose() {
@@ -1363,6 +1580,53 @@ class _InvitesTabState extends ConsumerState<_InvitesTab> {
       }
     } finally {
       if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _cancel(Map<String, dynamic> invite) async {
+    final id = _inviteId(invite);
+    if (id <= 0 || _cancelingId != null) return;
+    final email = _inviteEmail(invite);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Thu hồi lời mời?'),
+        content: Text(
+          'Lời mời đang chờ gửi tới $email sẽ bị hủy và không thể sử dụng.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Giữ lại'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Thu hồi'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _cancelingId = id);
+    try {
+      await ref
+          .read(dioProvider)
+          .delete('/group-trips/${widget.tripId}/invites/$id');
+      await widget.onChanged();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Đã thu hồi lời mời gửi tới $email.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiError(error))));
+      }
+    } finally {
+      if (mounted) setState(() => _cancelingId = null);
     }
   }
 
@@ -1435,15 +1699,27 @@ class _InvitesTabState extends ConsumerState<_InvitesTab> {
             ),
           )
         else
-          ...widget.invites.map((invite) => _InviteCard(invite: invite)),
+          ...widget.invites.map(
+            (invite) => _InviteCard(
+              invite: invite,
+              canceling: _cancelingId == _inviteId(invite),
+              onCancel: () => _cancel(invite),
+            ),
+          ),
       ],
     );
   }
 }
 
 class _InviteCard extends StatelessWidget {
-  const _InviteCard({required this.invite});
+  const _InviteCard({
+    required this.invite,
+    required this.canceling,
+    required this.onCancel,
+  });
   final Map<String, dynamic> invite;
+  final bool canceling;
+  final VoidCallback onCancel;
   @override
   Widget build(BuildContext context) {
     final user = invite['invited_user'] is Map
@@ -1495,6 +1771,24 @@ class _InviteCard extends StatelessWidget {
             ),
           ),
           _InviteStatus(status: '${invite['status'] ?? 'pending'}'),
+          if ('${invite['status'] ?? ''}' == 'pending') ...[
+            const SizedBox(width: 4),
+            IconButton(
+              tooltip: 'Thu hồi lời mời',
+              onPressed: canceling ? null : onCancel,
+              visualDensity: VisualDensity.compact,
+              icon: canceling
+                  ? const SizedBox.square(
+                      dimension: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(
+                      Icons.undo_rounded,
+                      size: 16,
+                      color: AppColors.error,
+                    ),
+            ),
+          ],
         ],
       ),
     );
@@ -1763,8 +2057,34 @@ Map<String, dynamic>? _unwrapTrip(dynamic body) {
   return value is Map ? Map<String, dynamic>.from(value) : null;
 }
 
+Map<String, dynamic> _unwrapLocation(dynamic body) {
+  dynamic value = unwrap(body);
+  if (value is Map && value['location'] is Map) value = value['location'];
+  return value is Map ? Map<String, dynamic>.from(value) : {};
+}
+
+String _itinerarySignature(Map<String, dynamic> trip) {
+  final items = trip['itinerary'];
+  if (items is! List) return '';
+  return items
+      .whereType<Map>()
+      .map(
+        (item) =>
+            '${_itineraryId(item)}:${item['location_id']}:${item['latitude']}:${item['longitude']}:${item['order_index']}',
+      )
+      .join('|');
+}
+
 int _int(dynamic value) => int.tryParse('${value ?? 0}') ?? 0;
 int _itineraryId(Map item) => _int(item['itinerary_item_id'] ?? item['id']);
+int _inviteId(Map invite) =>
+    _int(invite['group_trip_invite_id'] ?? invite['invite_id'] ?? invite['id']);
+String _inviteEmail(Map invite) {
+  final nested = invite['invited_user'];
+  final user = nested is Map ? nested : const {};
+  return '${invite['invited_email'] ?? user['email'] ?? 'người dùng này'}';
+}
+
 int _locationItemId(Map item) =>
     _int(item['location_id'] ?? item['travel_location_id'] ?? item['id']);
 String _locationItemName(Map item) =>
