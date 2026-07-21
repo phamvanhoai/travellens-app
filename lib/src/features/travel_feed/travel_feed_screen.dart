@@ -216,6 +216,7 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
                     onLike: () => toggleLike(visiblePosts[i]),
                     onComment: () => openComments(visiblePosts[i]),
                     onShare: () => share(visiblePosts[i]),
+                    onMore: () => openPostActions(visiblePosts[i]),
                   ),
                 ),
               ),
@@ -273,6 +274,157 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
     );
     if (created == true) load();
   }
+
+  Future<void> openPostActions(Map<String, dynamic> post) async {
+    if (!ref.read(authProvider).authenticated) {
+      context.push('/login');
+      return;
+    }
+    final currentUser = ref.read(authProvider).user ?? const <String, dynamic>{};
+    final currentUserId = _authUserId(currentUser);
+    final authorId = _authorId(post);
+    final ownPost = currentUserId > 0 && currentUserId == authorId;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (ownPost) ...[
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Chỉnh sửa bài viết'),
+                onTap: () => Navigator.pop(sheetContext, 'edit'),
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: AppColors.error,
+                ),
+                title: const Text(
+                  'Xóa bài viết',
+                  style: TextStyle(color: AppColors.error),
+                ),
+                onTap: () => Navigator.pop(sheetContext, 'delete'),
+              ),
+            ] else
+              ListTile(
+                leading: const Icon(
+                  Icons.block_rounded,
+                  color: AppColors.error,
+                ),
+                title: const Text(
+                  'Chặn người dùng',
+                  style: TextStyle(color: AppColors.error),
+                ),
+                subtitle: const Text('Ẩn tất cả bài viết của người này'),
+                onTap: authorId > 0
+                    ? () => Navigator.pop(sheetContext, 'block')
+                    : null,
+              ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'edit') {
+      final updated = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _Composer(post: post),
+      );
+      if (updated == true) await load();
+    } else if (action == 'delete') {
+      await _deletePost(post);
+    } else if (action == 'block') {
+      await _blockAuthor(post);
+    }
+  }
+
+  Future<void> _deletePost(Map<String, dynamic> post) async {
+    final id = _postId(post);
+    if (id <= 0) return;
+    final confirmed = await _confirmAction(
+      title: 'Xóa bài viết?',
+      message: 'Bài viết và toàn bộ nội dung liên quan sẽ bị xóa.',
+      confirmLabel: 'Xóa',
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await ref.read(dioProvider).delete('/travel-feed/$id');
+      if (!mounted) return;
+      setState(() => posts.removeWhere((value) => _postId(value) == id));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã xóa bài viết.')));
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiError(error))));
+      }
+    }
+  }
+
+  Future<void> _blockAuthor(Map<String, dynamic> post) async {
+    final authorId = _authorId(post);
+    if (authorId <= 0) return;
+    final author = post['author'] is Map ? post['author'] as Map : const {};
+    final name = '${author['name'] ?? 'người dùng này'}';
+    final confirmed = await _confirmAction(
+      title: 'Chặn $name?',
+      message: 'Tất cả bài viết của người này sẽ bị ẩn khỏi cộng đồng.',
+      confirmLabel: 'Chặn',
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await ref
+          .read(dioProvider)
+          .post('/travel-feed/users/$authorId/block');
+      if (!mounted) return;
+      setState(
+        () => posts.removeWhere((value) => _authorId(value) == authorId),
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Đã chặn $name.')));
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiError(error))));
+      }
+    }
+  }
+
+  Future<bool> _confirmAction({
+    required String title,
+    required String message,
+    required String confirmLabel,
+  }) async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+              child: Text(confirmLabel),
+            ),
+          ],
+        ),
+      ) ??
+      false;
 
   Future<void> openStoryComposer() async {
     final created = await showModalBottomSheet<bool>(
@@ -781,9 +933,10 @@ class _PostCard extends StatelessWidget {
     required this.onLike,
     required this.onComment,
     required this.onShare,
+    required this.onMore,
   });
   final Map<String, dynamic> post;
-  final VoidCallback onLike, onComment, onShare;
+  final VoidCallback onLike, onComment, onShare, onMore;
 
   @override
   Widget build(BuildContext context) {
@@ -828,14 +981,19 @@ class _PostCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(9),
+                IconButton(
+                  tooltip: 'Tùy chọn bài viết',
+                  onPressed: onMore,
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.surface,
+                    fixedSize: const Size(30, 30),
+                    minimumSize: const Size(30, 30),
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(9),
+                    ),
                   ),
-                  child: const Icon(
+                  icon: const Icon(
                     Icons.more_horiz_rounded,
                     color: AppColors.muted,
                     size: 16,
@@ -1145,7 +1303,8 @@ class _PhotoViewerState extends State<_PhotoViewer> {
 // ─── Composer ─────────────────────────────────────────────────────────────────
 
 class _Composer extends ConsumerStatefulWidget {
-  const _Composer();
+  const _Composer({this.post});
+  final Map<String, dynamic>? post;
   @override
   ConsumerState<_Composer> createState() => _ComposerState();
 }
@@ -1154,6 +1313,14 @@ class _ComposerState extends ConsumerState<_Composer> {
   final content = TextEditingController();
   XFile? image;
   bool saving = false;
+
+  bool get editing => widget.post != null;
+
+  @override
+  void initState() {
+    super.initState();
+    content.text = '${widget.post?['content'] ?? ''}';
+  }
 
   @override
   void dispose() {
@@ -1166,7 +1333,22 @@ class _ComposerState extends ConsumerState<_Composer> {
     setState(() => saving = true);
     try {
       dynamic data;
-      if (image == null)
+      if (editing) {
+        final post = widget.post!;
+        final photos = (post['photos'] is List ? post['photos'] as List : const [])
+            .whereType<Map>();
+        data = FormData.fromMap({
+          'content': content.text.trim(),
+          'destination_id': post['destination_id'] ?? '',
+          'location_id': post['location_id'] ?? '',
+          'visibility': post['visibility'] ?? 'public',
+          'keep_photo_ids': '[${photos.map(_photoId).where((id) => id > 0).join(',')}]',
+          if (image != null)
+            'photos': [
+              await MultipartFile.fromFile(image!.path, filename: image!.name),
+            ],
+        });
+      } else if (image == null)
         data = {'content': content.text.trim()};
       else
         data = FormData.fromMap({
@@ -1175,7 +1357,13 @@ class _ComposerState extends ConsumerState<_Composer> {
             await MultipartFile.fromFile(image!.path, filename: image!.name),
           ],
         });
-      await ref.read(dioProvider).post('/travel-feed', data: data);
+      if (editing) {
+        await ref
+            .read(dioProvider)
+            .patch('/travel-feed/${_postId(widget.post!)}', data: data);
+      } else {
+        await ref.read(dioProvider).post('/travel-feed', data: data);
+      }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted)
@@ -1236,9 +1424,14 @@ class _ComposerState extends ConsumerState<_Composer> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Share a moment', style: AppTextStyles.h3),
                     Text(
-                      'Inspire travelers with your story',
+                      editing ? 'Chỉnh sửa bài viết' : 'Share a moment',
+                      style: AppTextStyles.h3,
+                    ),
+                    Text(
+                      editing
+                          ? 'Cập nhật nội dung bạn đã chia sẻ'
+                          : 'Inspire travelers with your story',
                       style: AppTextStyles.caption,
                     ),
                   ],
@@ -1321,7 +1514,11 @@ class _ComposerState extends ConsumerState<_Composer> {
                         ),
                       )
                     : const Icon(Icons.send_rounded, size: 18),
-                label: Text(saving ? 'Publishing…' : 'Publish'),
+                label: Text(
+                  saving
+                      ? (editing ? 'Đang lưu…' : 'Publishing…')
+                      : (editing ? 'Lưu thay đổi' : 'Publish'),
+                ),
                 style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
               ),
             ],
@@ -2061,6 +2258,18 @@ class _FeedSkeleton extends StatelessWidget {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 int _postId(Map p) => int.tryParse('${p['post_id'] ?? p['id'] ?? 0}') ?? 0;
+int _authorId(Map post) {
+  final author = post['author'] is Map ? post['author'] as Map : const {};
+  final user = post['user'] is Map ? post['user'] as Map : const {};
+  return int.tryParse(
+        '${post['user_id'] ?? post['customer_id'] ?? post['author_id'] ?? author['user_id'] ?? author['customer_id'] ?? author['id'] ?? user['user_id'] ?? user['id'] ?? 0}',
+      ) ??
+      0;
+}
+
+int _photoId(Map photo) =>
+    int.tryParse('${photo['photo_id'] ?? photo['media_id'] ?? photo['id'] ?? 0}') ??
+    0;
 int _commentId(Map c) =>
     int.tryParse('${c['comment_id'] ?? c['id'] ?? 0}') ?? 0;
 int _commentUserId(Map c) {

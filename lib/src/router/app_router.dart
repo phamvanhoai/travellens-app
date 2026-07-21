@@ -12,6 +12,7 @@ import '../features/tours/tour_detail_screen.dart';
 import '../screens/account_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/booking_screen.dart';
+import '../screens/blocked_users_screen.dart';
 import '../screens/entity_screens.dart';
 import '../screens/edit_profile_screen.dart';
 import '../screens/home_screen.dart';
@@ -189,15 +190,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/blocked-users',
-        builder: (_, _) => const EntityListScreen(
-          config: EntityConfig(
-            title: 'Blocked users',
-            endpoint: '/travel-feed/blocked-users',
-            keys: ['users', 'blocked_users'],
-            detailBase: '',
-            auth: true,
-          ),
-        ),
+        builder: (_, _) => const BlockedUsersScreen(),
       ),
       GoRoute(path: '/profile', builder: (_, _) => const EditProfileScreen()),
       GoRoute(
