@@ -17,6 +17,7 @@ import '../screens/entity_screens.dart';
 import '../screens/edit_profile_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/group_trips_screen.dart';
+import '../screens/group_trip_detail_screen.dart';
 import '../screens/invitations_screen.dart';
 import '../screens/my_bookings_screen.dart';
 import '../screens/my_travel_stories_screen.dart';
@@ -165,9 +166,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/group-trips/:id',
-        builder: (_, s) => EntityDetailScreen(
-          title: 'Group trip',
-          endpoint: '/group-trips/${s.pathParameters['id']}',
+        builder: (_, s) => GroupTripDetailScreen(
+          id: int.tryParse(s.pathParameters['id'] ?? '') ?? 0,
         ),
       ),
       GoRoute(

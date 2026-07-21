@@ -46,14 +46,16 @@ class _GroupTripsScreenState extends ConsumerState<GroupTripsScreen> {
       _error = null;
     });
     try {
-      final response = await ref.read(dioProvider).get(
-        '/group-trips',
-        queryParameters: {
-          'page': _page,
-          'limit': _pageSize,
-          if (_search.text.trim().isNotEmpty) 'search': _search.text.trim(),
-        },
-      );
+      final response = await ref
+          .read(dioProvider)
+          .get(
+            '/group-trips',
+            queryParameters: {
+              'page': _page,
+              'limit': _pageSize,
+              if (_search.text.trim().isNotEmpty) 'search': _search.text.trim(),
+            },
+          );
       final result = _parseTrips(response.data);
       if (!mounted) return;
       setState(() {
@@ -249,7 +251,8 @@ class _GroupTripCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final id = _tripId(item);
     final name = '${item['name'] ?? 'Chuyến đi nhóm'}';
-    final destination = '${item['destination_name'] ?? 'Điểm đến đang cập nhật'}';
+    final destination =
+        '${item['destination_name'] ?? 'Điểm đến đang cập nhật'}';
     final image = AppConfig.assetUrl(
       '${item['cover_image'] ?? item['thumbnail_url'] ?? item['image_url'] ?? ''}',
     );
@@ -354,7 +357,9 @@ class _GroupTripCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        maximum > 0 ? '$members/$maximum thành viên' : '$members thành viên',
+                        maximum > 0
+                            ? '$members/$maximum thành viên'
+                            : '$members thành viên',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 8.5,
@@ -428,14 +433,22 @@ class _CreateGroupTripSheet extends ConsumerStatefulWidget {
       _CreateGroupTripSheetState();
 }
 
-class _CreateGroupTripSheetState
-    extends ConsumerState<_CreateGroupTripSheet> {
+class _CreateGroupTripSheetState extends ConsumerState<_CreateGroupTripSheet> {
   final _name = TextEditingController();
   final _description = TextEditingController();
   final _maxMembers = TextEditingController(text: '6');
+  List<Map<String, dynamic>> _destinations = [];
+  int? _destinationId;
+  bool _loadingDestinations = true;
   DateTime? _startDate, _endDate;
   bool _public = false;
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDestinations();
+  }
 
   @override
   void dispose() {
@@ -443,6 +456,35 @@ class _CreateGroupTripSheetState
     _description.dispose();
     _maxMembers.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadDestinations() async {
+    try {
+      final response = await ref
+          .read(dioProvider)
+          .get(
+            '/travel-destinations',
+            queryParameters: {'page': 1, 'limit': 100},
+          );
+      final values = unwrapList(response.data, [
+        'destinations',
+        'travel_destinations',
+      ]);
+      final unique = <int, Map<String, dynamic>>{};
+      for (final item in values) {
+        final id = _destinationItemId(item);
+        if (id > 0) unique[id] = item;
+      }
+      if (!mounted) return;
+      setState(() => _destinations = unique.values.toList());
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Không thể tải địa điểm: ${apiError(error)}')),
+      );
+    } finally {
+      if (mounted) setState(() => _loadingDestinations = false);
+    }
   }
 
   Future<void> _pickDate(bool start) async {
@@ -467,26 +509,38 @@ class _CreateGroupTripSheetState
 
   Future<void> _submit() async {
     final name = _name.text.trim();
-    if (name.isEmpty || _startDate == null || _endDate == null) {
+    if (name.isEmpty ||
+        _destinationId == null ||
+        _startDate == null ||
+        _endDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập tên và ngày chuyến đi.')),
+        const SnackBar(
+          content: Text('Vui lòng nhập tên, địa điểm và ngày chuyến đi.'),
+        ),
       );
       return;
     }
+    final destination = _destinations.firstWhere(
+      (item) => _destinationItemId(item) == _destinationId,
+    );
     setState(() => _saving = true);
     try {
       final formatter = DateFormat('yyyy-MM-dd');
-      await ref.read(dioProvider).post(
-        '/group-trips',
-        data: {
-          'name': name,
-          'description': _description.text.trim(),
-          'start_date': formatter.format(_startDate!),
-          'end_date': formatter.format(_endDate!),
-          'max_members': int.tryParse(_maxMembers.text.trim()) ?? 6,
-          'visibility': _public ? 'public' : 'private',
-        },
-      );
+      await ref
+          .read(dioProvider)
+          .post(
+            '/group-trips',
+            data: {
+              'name': name,
+              'description': _description.text.trim(),
+              'destination_id': _destinationId,
+              'destination_name': _destinationItemName(destination),
+              'start_date': formatter.format(_startDate!),
+              'end_date': formatter.format(_endDate!),
+              'max_members': int.tryParse(_maxMembers.text.trim()) ?? 6,
+              'visibility': _public ? 'public' : 'private',
+            },
+          );
       if (mounted) Navigator.pop(context, true);
     } catch (error) {
       if (mounted) {
@@ -542,6 +596,44 @@ class _CreateGroupTripSheetState
             decoration: const InputDecoration(labelText: 'Mô tả'),
           ),
           const SizedBox(height: 10),
+          DropdownButtonFormField<int>(
+            initialValue: _destinationId,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: 'Địa điểm *',
+              prefixIcon: const Icon(Icons.location_on_outlined, size: 18),
+              suffixIcon: _loadingDestinations
+                  ? const Padding(
+                      padding: EdgeInsets.all(14),
+                      child: SizedBox.square(
+                        dimension: 15,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : null,
+            ),
+            hint: Text(
+              _loadingDestinations ? 'Đang tải địa điểm...' : 'Chọn địa điểm',
+              style: const TextStyle(fontSize: 10.5),
+            ),
+            items: _destinations
+                .map(
+                  (item) => DropdownMenuItem<int>(
+                    value: _destinationItemId(item),
+                    child: Text(
+                      _destinationItemName(item),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 10.5),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: _loadingDestinations
+                ? null
+                : (value) => setState(() => _destinationId = value),
+          ),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
@@ -565,7 +657,9 @@ class _CreateGroupTripSheetState
           TextField(
             controller: _maxMembers,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Số thành viên tối đa'),
+            decoration: const InputDecoration(
+              labelText: 'Số thành viên tối đa',
+            ),
           ),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
@@ -603,7 +697,11 @@ class _CreateGroupTripSheetState
 }
 
 class _DateField extends StatelessWidget {
-  const _DateField({required this.label, required this.value, required this.onTap});
+  const _DateField({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
   final String label;
   final DateTime? value;
   final VoidCallback onTap;
@@ -681,8 +779,10 @@ class _GroupTripPagination extends StatelessWidget {
       : root['pagination'] is Map
       ? root['pagination'] as Map
       : const {};
-  final total = int.tryParse('${pagination['total'] ?? items.length}') ?? items.length;
-  final totalPages = int.tryParse(
+  final total =
+      int.tryParse('${pagination['total'] ?? items.length}') ?? items.length;
+  final totalPages =
+      int.tryParse(
         '${pagination['totalPages'] ?? pagination['total_pages'] ?? 1}',
       ) ??
       1;
@@ -692,6 +792,13 @@ class _GroupTripPagination extends StatelessWidget {
 int _tripId(Map item) =>
     int.tryParse('${item['group_trip_id'] ?? item['id'] ?? 0}') ?? 0;
 int _integer(dynamic value) => int.tryParse('${value ?? 0}') ?? 0;
+int _destinationItemId(Map item) =>
+    int.tryParse(
+      '${item['travel_destination_id'] ?? item['destination_id'] ?? item['id'] ?? 0}',
+    ) ??
+    0;
+String _destinationItemName(Map item) =>
+    '${item['name'] ?? item['title'] ?? 'Địa điểm #${_destinationItemId(item)}'}';
 
 String _dateRange(dynamic start, dynamic end) {
   final startDate = DateTime.tryParse('${start ?? ''}')?.toLocal();
