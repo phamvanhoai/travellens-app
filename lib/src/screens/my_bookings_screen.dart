@@ -51,20 +51,38 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
       _error = null;
     });
     try {
-      final response = await ref
-          .read(dioProvider)
-          .get(
-            '/bookings',
-            queryParameters: {
-              'page': _page,
-              'limit': 5,
-              if (_searchController.text.trim().isNotEmpty)
-                'search': _searchController.text.trim(),
-            },
-          );
-      final body = response.data;
-      final pagination = _bookingPagination(body);
-      final pageItems = unwrapList(body, ['bookings']);
+      final query = _searchController.text.trim();
+      late final List<Map<String, dynamic>> pageItems;
+      late final (int, int) pagination;
+
+      if (_tab == 0 && query.isEmpty) {
+        final response = await ref
+            .read(dioProvider)
+            .get('/bookings', queryParameters: {'page': _page, 'limit': 5});
+        final body = response.data;
+        pagination = _bookingPagination(body);
+        pageItems = unwrapList(body, ['bookings']);
+      } else {
+        final allItems = await _loadAllBookingPages();
+        final filtered = allItems.where((item) {
+          final matchesTab = switch (_tab) {
+            1 => !_isCompleted(item) && !_isCancelled(item),
+            2 => _isCompleted(item),
+            3 => _isCancelled(item),
+            _ => true,
+          };
+          if (!matchesTab || query.isEmpty) return matchesTab;
+          final keyword = query.toLowerCase();
+          return _bookingCode(item).toLowerCase().contains(keyword) ||
+              _tourName(item).toLowerCase().contains(keyword) ||
+              '${item['contact_phone'] ?? ''}'.toLowerCase().contains(keyword);
+        }).toList();
+        final totalPages = math.max(1, (filtered.length / 5).ceil());
+        if (_page > totalPages) _page = totalPages;
+        final start = (_page - 1) * 5;
+        pageItems = filtered.skip(start).take(5).toList();
+        pagination = (totalPages, filtered.length);
+      }
       final items = await _loadBookingDetails(pageItems);
       if (mounted) {
         setState(() {
@@ -78,6 +96,24 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<List<Map<String, dynamic>>> _loadAllBookingPages() async {
+    final dio = ref.read(dioProvider);
+    final first = await dio.get(
+      '/bookings',
+      queryParameters: {'page': 1, 'limit': 100},
+    );
+    final items = unwrapList(first.data, ['bookings']);
+    final totalPages = _bookingPagination(first.data).$1;
+    for (var page = 2; page <= totalPages; page++) {
+      final response = await dio.get(
+        '/bookings',
+        queryParameters: {'page': page, 'limit': 100},
+      );
+      items.addAll(unwrapList(response.data, ['bookings']));
+    }
+    return items;
   }
 
   Future<List<Map<String, dynamic>>> _loadBookingDetails(
@@ -132,14 +168,17 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
     _load();
   }
 
-  List<Map<String, dynamic>> get _visible => _items.where((item) {
-    return switch (_tab) {
-      1 => !_isCompleted(item) && !_isCancelled(item),
-      2 => _isCompleted(item),
-      3 => _isCancelled(item),
-      _ => true,
-    };
-  }).toList();
+  List<Map<String, dynamic>> get _visible => _items;
+
+  void _changeTab(int value) {
+    if (value == _tab) return;
+    setState(() {
+      _tab = value;
+      _page = 1;
+      _items = [];
+    });
+    _load();
+  }
 
   Future<void> _cancel(Map<String, dynamic> booking) async {
     final id = _bookingId(booking);
@@ -270,7 +309,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                 itemBuilder: (_, index) => _BookingTab(
                   label: _tabs[index],
                   selected: _tab == index,
-                  onTap: () => setState(() => _tab = index),
+                  onTap: () => _changeTab(index),
                 ),
               ),
             ),
