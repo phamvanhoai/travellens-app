@@ -319,7 +319,7 @@ class _GroupTripDetailScreenState extends ConsumerState<GroupTripDetailScreen>
               controller: _tabs,
               children: [
                 _OverviewTab(trip: trip, onRefresh: _refresh),
-                _ItineraryTab(trip: trip),
+                _ItineraryTab(trip: trip, leader: _leader, onChanged: _refresh),
                 _MembersTab(
                   members: _members,
                   loading: _loadingMembers,
@@ -521,99 +521,631 @@ class _OverviewTab extends StatelessWidget {
   );
 }
 
-class _ItineraryTab extends StatelessWidget {
-  const _ItineraryTab({required this.trip});
+class _ItineraryTab extends ConsumerStatefulWidget {
+  const _ItineraryTab({
+    required this.trip,
+    required this.leader,
+    required this.onChanged,
+  });
   final Map<String, dynamic> trip;
+  final bool leader;
+  final Future<void> Function() onChanged;
+
+  @override
+  ConsumerState<_ItineraryTab> createState() => _ItineraryTabState();
+}
+
+class _ItineraryTabState extends ConsumerState<_ItineraryTab> {
+  bool _working = false;
+
+  List<Map<String, dynamic>> get _items {
+    final items =
+        (widget.trip['itinerary'] is List
+                ? widget.trip['itinerary'] as List
+                : const [])
+            .whereType<Map>()
+            .map((value) => Map<String, dynamic>.from(value))
+            .toList();
+    items.sort(_compareItinerary);
+    return items;
+  }
+
+  Future<void> _openForm([Map<String, dynamic>? item]) async {
+    final changed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ItineraryFormSheet(trip: widget.trip, item: item),
+    );
+    if (changed == true) await widget.onChanged();
+  }
+
+  Future<void> _delete(Map<String, dynamic> item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xóa hoạt động?'),
+        content: Text(
+          '“${item['title'] ?? 'Hoạt động'}” sẽ bị xóa khỏi lịch trình.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _working = true);
+    try {
+      await ref
+          .read(dioProvider)
+          .delete(
+            '/group-trips/${_int(widget.trip['group_trip_id'])}/itinerary/${_itineraryId(item)}',
+          );
+      await widget.onChanged();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiError(error))));
+      }
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final items =
-        (trip['itinerary'] is List ? trip['itinerary'] as List : const [])
-            .whereType<Map>()
-            .toList();
-    if (items.isEmpty) {
-      return const AppEmptyState(
-        icon: Icons.route_outlined,
-        title: 'Chưa có lịch trình',
-        subtitle: 'Các hoạt động của chuyến đi sẽ xuất hiện tại đây.',
+    final items = _items;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 110),
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Lịch trình chuyến đi',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Các điểm dừng được sắp xếp theo ngày và giờ.',
+                    style: TextStyle(fontSize: 9.5, color: AppColors.muted),
+                  ),
+                ],
+              ),
+            ),
+            if (widget.leader)
+              SizedBox(
+                height: 34,
+                child: FilledButton.icon(
+                  onPressed: _working ? null : () => _openForm(),
+                  icon: const Icon(Icons.add_rounded, size: 15),
+                  label: const Text('Thêm', style: TextStyle(fontSize: 10)),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        if (items.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 55),
+            child: AppEmptyState(
+              icon: Icons.route_outlined,
+              title: 'Chưa có lịch trình',
+              subtitle: 'Thêm hoạt động đầu tiên cho chuyến đi.',
+            ),
+          )
+        else
+          ..._timeline(items),
+      ],
+    );
+  }
+
+  List<Widget> _timeline(List<Map<String, dynamic>> items) {
+    final widgets = <Widget>[];
+    String? currentDate;
+    for (var index = 0; index < items.length; index++) {
+      final item = items[index];
+      final date = _dayKey(item['itinerary_date']);
+      if (date != currentDate) {
+        if (widgets.isNotEmpty) widgets.add(const SizedBox(height: 12));
+        widgets.add(_ItineraryDayHeader(date: item['itinerary_date']));
+        widgets.add(const SizedBox(height: 7));
+        currentDate = date;
+      }
+      final nextSameDate =
+          index + 1 < items.length &&
+          _dayKey(items[index + 1]['itinerary_date']) == date;
+      widgets.add(
+        _ItineraryTimelineCard(
+          item: item,
+          showLine: nextSameDate,
+          leader: widget.leader,
+          working: _working,
+          onEdit: () => _openForm(item),
+          onDelete: () => _delete(item),
+        ),
       );
     }
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(18, 14, 18, 110),
-      itemCount: items.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 9),
-      itemBuilder: (_, index) => _ItineraryCard(
-        item: Map<String, dynamic>.from(items[index]),
-        index: index,
-      ),
+    return widgets;
+  }
+}
+
+class _ItineraryDayHeader extends StatelessWidget {
+  const _ItineraryDayHeader({required this.date});
+  final dynamic date;
+  @override
+  Widget build(BuildContext context) {
+    final parsed = DateTime.tryParse('${date ?? ''}')?.toLocal();
+    final label = parsed == null
+        ? '${date ?? ''}'
+        : _vietnameseDayLabel(parsed);
+    return Row(
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: AppColors.brand,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: const Icon(
+            Icons.calendar_today_rounded,
+            size: 13,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+        ),
+      ],
     );
   }
 }
 
-class _ItineraryCard extends StatelessWidget {
-  const _ItineraryCard({required this.item, required this.index});
+class _ItineraryTimelineCard extends StatelessWidget {
+  const _ItineraryTimelineCard({
+    required this.item,
+    required this.showLine,
+    required this.leader,
+    required this.working,
+    required this.onEdit,
+    required this.onDelete,
+  });
   final Map<String, dynamic> item;
-  final int index;
+  final bool showLine, leader, working;
+  final VoidCallback onEdit, onDelete;
+
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(11),
-    decoration: _cardDecoration(),
+  Widget build(BuildContext context) => IntrinsicHeight(
     child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          width: 32,
-          height: 32,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: const Color(0xFFEFF6FF),
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Text(
-            '${index + 1}',
-            style: const TextStyle(
-              color: AppColors.brand,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
+        SizedBox(
+          width: 28,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '${item['title'] ?? 'Hoạt động'}',
-                style: const TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
+              const SizedBox(height: 13),
+              Container(
+                width: 9,
+                height: 9,
+                decoration: BoxDecoration(
+                  color: AppColors.brand,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                [
-                  _date(item['itinerary_date']),
-                  '${item['start_time'] ?? ''}',
-                  '${item['custom_location'] ?? ''}',
-                ].where((value) => value.trim().isNotEmpty).join(' · '),
-                style: const TextStyle(fontSize: 9, color: AppColors.muted),
-              ),
-              if ('${item['description'] ?? ''}'.trim().isNotEmpty) ...[
-                const SizedBox(height: 5),
-                Text(
-                  '${item['description']}',
-                  style: const TextStyle(
-                    fontSize: 9.5,
-                    height: 1.4,
-                    color: AppColors.muted,
-                  ),
+              if (showLine)
+                Expanded(
+                  child: Container(width: 1.5, color: const Color(0xFFBFDBFE)),
                 ),
-              ],
             ],
           ),
         ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.fromLTRB(11, 9, 7, 9),
+            decoration: _cardDecoration(),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 43,
+                  child: Text(
+                    _time(item['start_time']),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppColors.brand,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${item['title'] ?? 'Hoạt động'}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on_outlined,
+                            size: 12,
+                            color: AppColors.muted,
+                          ),
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(
+                              _itineraryLocation(item),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 9,
+                                color: AppColors.muted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if ('${item['description'] ?? ''}'.trim().isNotEmpty) ...[
+                        const SizedBox(height: 5),
+                        Text(
+                          '${item['description']}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 9.5,
+                            height: 1.35,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (leader)
+                  PopupMenuButton<String>(
+                    enabled: !working,
+                    padding: EdgeInsets.zero,
+                    iconSize: 17,
+                    onSelected: (value) {
+                      if (value == 'edit') onEdit();
+                      if (value == 'delete') onDelete();
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Chỉnh sửa')),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Text(
+                          'Xóa',
+                          style: TextStyle(color: AppColors.error),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ),
       ],
+    ),
+  );
+}
+
+class _ItineraryFormSheet extends ConsumerStatefulWidget {
+  const _ItineraryFormSheet({required this.trip, this.item});
+  final Map<String, dynamic> trip;
+  final Map<String, dynamic>? item;
+  @override
+  ConsumerState<_ItineraryFormSheet> createState() =>
+      _ItineraryFormSheetState();
+}
+
+class _ItineraryFormSheetState extends ConsumerState<_ItineraryFormSheet> {
+  late final _title = TextEditingController(
+    text: '${widget.item?['title'] ?? ''}',
+  );
+  late final _description = TextEditingController(
+    text: '${widget.item?['description'] ?? ''}',
+  );
+  late final _order = TextEditingController(
+    text: '${widget.item?['order_index'] ?? 1}',
+  );
+  late DateTime? _dateValue = DateTime.tryParse(
+    '${widget.item?['itinerary_date'] ?? widget.trip['start_date'] ?? ''}',
+  );
+  late TimeOfDay? _timeValue = _parseTime(widget.item?['start_time']);
+  List<Map<String, dynamic>> _locations = [];
+  int? _locationId;
+  bool _loadingLocations = true;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _locationId = _int(widget.item?['location_id']);
+    if (_locationId == 0) _locationId = null;
+    _loadLocations();
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _description.dispose();
+    _order.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadLocations() async {
+    try {
+      final response = await ref
+          .read(dioProvider)
+          .get('/locations', queryParameters: {'page': 1, 'limit': 100});
+      final values = unwrapList(response.data, ['locations']);
+      final unique = <int, Map<String, dynamic>>{};
+      for (final item in values) {
+        final id = _locationItemId(item);
+        if (id > 0) unique[id] = item;
+      }
+      if (mounted) setState(() => _locations = unique.values.toList());
+    } catch (_) {
+      if (mounted) setState(() => _locations = []);
+    } finally {
+      if (mounted) setState(() => _loadingLocations = false);
+    }
+  }
+
+  Future<void> _pickDate() async {
+    final start =
+        DateTime.tryParse('${widget.trip['start_date']}') ?? DateTime.now();
+    final end =
+        DateTime.tryParse('${widget.trip['end_date']}') ??
+        start.add(const Duration(days: 365));
+    final initial = _dateValue == null || _dateValue!.isBefore(start)
+        ? start
+        : _dateValue!.isAfter(end)
+        ? end
+        : _dateValue!;
+    final value = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: start,
+      lastDate: end,
+    );
+    if (value != null) setState(() => _dateValue = value);
+  }
+
+  Future<void> _pickTime() async {
+    final value = await showTimePicker(
+      context: context,
+      initialTime: _timeValue ?? TimeOfDay.now(),
+    );
+    if (value != null) setState(() => _timeValue = value);
+  }
+
+  Future<void> _save() async {
+    final hasExistingCustomLocation = '${widget.item?['custom_location'] ?? ''}'
+        .trim()
+        .isNotEmpty;
+    if (_title.text.trim().isEmpty ||
+        _dateValue == null ||
+        (_locationId == null && !hasExistingCustomLocation)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập tiêu đề, ngày và địa điểm.'),
+        ),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final data = {
+        'itinerary_date': DateFormat('yyyy-MM-dd').format(_dateValue!),
+        if (_timeValue != null)
+          'start_time':
+              '${_timeValue!.hour.toString().padLeft(2, '0')}:${_timeValue!.minute.toString().padLeft(2, '0')}',
+        'title': _title.text.trim(),
+        'description': _description.text.trim(),
+        if (_locationId != null)
+          'location_id': _locationId
+        else ...{
+          'custom_location': widget.item?['custom_location'],
+          'latitude': widget.item?['latitude'],
+          'longitude': widget.item?['longitude'],
+        },
+        'order_index': int.tryParse(_order.text.trim()) ?? 1,
+      };
+      final tripId = _int(widget.trip['group_trip_id']);
+      if (widget.item == null) {
+        await ref
+            .read(dioProvider)
+            .post('/group-trips/$tripId/itinerary', data: data);
+      } else {
+        await ref
+            .read(dioProvider)
+            .patch(
+              '/group-trips/$tripId/itinerary/${_itineraryId(widget.item!)}',
+              data: data,
+            );
+      }
+      if (mounted) Navigator.pop(context, true);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiError(error))));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.white,
+    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+    child: SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(
+        18,
+        14,
+        18,
+        MediaQuery.viewInsetsOf(context).bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.item == null ? 'Thêm hoạt động' : 'Chỉnh sửa hoạt động',
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 13),
+          Row(
+            children: [
+              Expanded(
+                child: _ItineraryPicker(
+                  label: 'Ngày',
+                  value: _dateValue == null
+                      ? 'Chọn ngày'
+                      : DateFormat('dd/MM/yyyy').format(_dateValue!),
+                  icon: Icons.calendar_month_outlined,
+                  onTap: _pickDate,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ItineraryPicker(
+                  label: 'Giờ bắt đầu',
+                  value: _timeValue?.format(context) ?? 'Chọn giờ',
+                  icon: Icons.schedule_rounded,
+                  onTap: _pickTime,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _title,
+            decoration: const InputDecoration(labelText: 'Tên hoạt động *'),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _description,
+            minLines: 2,
+            maxLines: 3,
+            decoration: const InputDecoration(labelText: 'Mô tả'),
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<int>(
+            initialValue:
+                _locations.any((item) => _locationItemId(item) == _locationId)
+                ? _locationId
+                : null,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: 'Địa điểm *',
+              suffixIcon: _loadingLocations
+                  ? const Padding(
+                      padding: EdgeInsets.all(14),
+                      child: SizedBox.square(
+                        dimension: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : null,
+            ),
+            hint: Text(
+              '${widget.item?['custom_location'] ?? 'Chọn địa điểm'}',
+              style: const TextStyle(fontSize: 10.5),
+            ),
+            items: _locations
+                .map(
+                  (item) => DropdownMenuItem(
+                    value: _locationItemId(item),
+                    child: Text(
+                      _locationItemName(item),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 10.5),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => setState(() => _locationId = value),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _order,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Thứ tự'),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: FilledButton(
+              onPressed: _saving ? null : _save,
+              child: _saving
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      widget.item == null ? 'Thêm hoạt động' : 'Lưu thay đổi',
+                    ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ItineraryPicker extends StatelessWidget {
+  const _ItineraryPicker({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.onTap,
+  });
+  final String label, value;
+  final IconData icon;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(12),
+    child: InputDecorator(
+      decoration: InputDecoration(
+        labelText: label,
+        suffixIcon: Icon(icon, size: 17),
+      ),
+      child: Text(value, style: const TextStyle(fontSize: 10.5)),
     ),
   );
 }
@@ -1232,6 +1764,11 @@ Map<String, dynamic>? _unwrapTrip(dynamic body) {
 }
 
 int _int(dynamic value) => int.tryParse('${value ?? 0}') ?? 0;
+int _itineraryId(Map item) => _int(item['itinerary_item_id'] ?? item['id']);
+int _locationItemId(Map item) =>
+    _int(item['location_id'] ?? item['travel_location_id'] ?? item['id']);
+String _locationItemName(Map item) =>
+    '${item['name'] ?? item['title'] ?? 'Địa điểm #${_locationItemId(item)}'}';
 String _memberName(Map member) =>
     '${member['name'] ?? 'Thành viên #${_int(member['user_id'])}'}';
 String _date(dynamic value) {
@@ -1243,4 +1780,64 @@ String _dateRange(dynamic start, dynamic end) {
   final first = _date(start), last = _date(end);
   if (first.isEmpty) return 'Đang cập nhật';
   return last.isEmpty ? first : '$first – $last';
+}
+
+String _vietnameseDayLabel(DateTime date) {
+  const weekdays = [
+    'Thứ Hai',
+    'Thứ Ba',
+    'Thứ Tư',
+    'Thứ Năm',
+    'Thứ Sáu',
+    'Thứ Bảy',
+    'Chủ Nhật',
+  ];
+  final day = date.day.toString().padLeft(2, '0');
+  final month = date.month.toString().padLeft(2, '0');
+  return '${weekdays[date.weekday - 1]}, $day tháng $month';
+}
+
+String _dayKey(dynamic value) {
+  final text = '${value ?? ''}';
+  if (RegExp(r'^\d{4}-\d{2}-\d{2}').hasMatch(text)) {
+    return text.substring(0, 10);
+  }
+  final date = DateTime.tryParse(text)?.toLocal();
+  return date == null ? text : DateFormat('yyyy-MM-dd').format(date);
+}
+
+String _time(dynamic value) {
+  final text = '${value ?? ''}'.trim();
+  if (text.isEmpty) return '--:--';
+  final match = RegExp(r'^(\d{2}):(\d{2})').firstMatch(text);
+  if (match != null) return '${match.group(1)}:${match.group(2)}';
+  final date = DateTime.tryParse(text)?.toLocal();
+  return date == null ? text : DateFormat('HH:mm').format(date);
+}
+
+TimeOfDay? _parseTime(dynamic value) {
+  final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch('${value ?? ''}');
+  if (match == null) return null;
+  final hour = int.tryParse(match.group(1) ?? '');
+  final minute = int.tryParse(match.group(2) ?? '');
+  if (hour == null || minute == null || hour > 23 || minute > 59) return null;
+  return TimeOfDay(hour: hour, minute: minute);
+}
+
+String _itineraryLocation(Map item) {
+  final nested = item['location'];
+  final location = nested is Map ? nested : const {};
+  return '${item['custom_location'] ?? item['location_name'] ?? location['name'] ?? (_int(item['location_id']) > 0 ? 'Địa điểm #${_int(item['location_id'])}' : 'Chưa có địa điểm')}';
+}
+
+int _compareItinerary(Map<String, dynamic> first, Map<String, dynamic> second) {
+  final date = _dayKey(
+    first['itinerary_date'],
+  ).compareTo(_dayKey(second['itinerary_date']));
+  if (date != 0) return date;
+  final order = _int(
+    first['order_index'] ?? 1,
+  ).compareTo(_int(second['order_index'] ?? 1));
+  if (order != 0) return order;
+  return _time(first['start_time']).compareTo(_time(second['start_time']));
 }
