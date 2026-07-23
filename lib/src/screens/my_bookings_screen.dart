@@ -998,45 +998,51 @@ class _BookingDetailSheet extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    GridView.count(
-                      crossAxisCount: 2,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
-                      childAspectRatio: 1.75,
-                      children: [
-                        _DetailInfo(
-                          label: 'Tour',
-                          value: _tourName(booking),
-                          icon: Icons.card_travel_outlined,
-                        ),
-                        _DetailInfo(
-                          label: 'Khởi hành',
-                          value: _formatDate(_bookingDate(booking)),
-                          icon: Icons.calendar_month_outlined,
-                        ),
-                        _DetailInfo(
-                          label: 'Trạng thái booking',
-                          icon: Icons.fact_check_outlined,
-                          child: _StatusChip(status: _bookingStatus(booking)),
-                        ),
-                        _DetailInfo(
-                          label: 'Thanh toán',
-                          icon: Icons.payments_outlined,
-                          child: _StatusChip(status: _paymentStatus(booking)),
-                        ),
-                        _DetailInfo(
-                          label: 'Số điện thoại',
-                          value: contact,
-                          icon: Icons.phone_outlined,
-                        ),
-                        _DetailInfo(
-                          label: 'Phương thức',
-                          value: method,
-                          icon: Icons.account_balance_wallet_outlined,
-                        ),
-                      ],
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final width = (constraints.maxWidth - 10) / 2;
+                        final items = [
+                          _DetailInfo(
+                            label: 'Tour',
+                            value: _tourName(booking),
+                            icon: Icons.card_travel_outlined,
+                          ),
+                          _DetailInfo(
+                            label: 'Khởi hành',
+                            value: _formatDate(_bookingDate(booking)),
+                            icon: Icons.calendar_month_outlined,
+                          ),
+                          _DetailInfo(
+                            label: 'Trạng thái booking',
+                            icon: Icons.fact_check_outlined,
+                            child: _StatusChip(status: _bookingStatus(booking)),
+                          ),
+                          _DetailInfo(
+                            label: 'Thanh toán',
+                            icon: Icons.payments_outlined,
+                            child: _StatusChip(status: _paymentStatus(booking)),
+                          ),
+                          _DetailInfo(
+                            label: 'Số điện thoại',
+                            value: contact,
+                            icon: Icons.phone_outlined,
+                          ),
+                          _DetailInfo(
+                            label: 'Phương thức',
+                            value: method,
+                            icon: Icons.account_balance_wallet_outlined,
+                          ),
+                        ];
+                        return Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: items
+                              .map(
+                                (item) => SizedBox(width: width, child: item),
+                              )
+                              .toList(),
+                        );
+                      },
                     ),
                     const SizedBox(height: 22),
                     Row(
@@ -1139,6 +1145,7 @@ class _DetailInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(minHeight: 90),
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       color: AppColors.surface,

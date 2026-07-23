@@ -722,7 +722,7 @@ class _SelectedTour extends StatelessWidget {
   final String name, destination, image, duration;
   @override
   Widget build(BuildContext context) => Container(
-    height: 86,
+    constraints: const BoxConstraints(minHeight: 86),
     padding: const EdgeInsets.all(8),
     decoration: BoxDecoration(
       color: Colors.white,
@@ -817,8 +817,8 @@ class _GuestRow extends StatelessWidget {
   final int value, min;
   final ValueChanged<int> onChanged;
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 63,
+  Widget build(BuildContext context) => ConstrainedBox(
+    constraints: const BoxConstraints(minHeight: 63),
     child: Row(
       children: [
         Expanded(
