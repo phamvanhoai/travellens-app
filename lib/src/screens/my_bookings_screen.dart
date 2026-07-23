@@ -181,6 +181,16 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
     _load();
   }
 
+  void _showDetail(Map<String, dynamic> booking) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _BookingDetailSheet(booking: booking),
+    );
+  }
+
   Future<void> _cancel(Map<String, dynamic> booking) async {
     final id = _bookingId(booking);
     final reasonController = TextEditingController();
@@ -398,6 +408,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                   final booking = _visible[index];
                   return _BookingCard(
                     booking: booking,
+                    onDetail: () => _showDetail(booking),
                     onPay: () => context.push(
                       '/payment/checkout?bookingId=${_bookingId(booking)}',
                     ),
@@ -525,8 +536,8 @@ class _BookingSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    height: 116,
-    padding: const EdgeInsets.all(10),
+    height: 190,
+    padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(13),
@@ -544,7 +555,7 @@ class _BookingSkeleton extends StatelessWidget {
         SizedBox(height: 8),
         Row(
           children: [
-            AppShimmerBox(width: 72, height: 64, borderRadius: 9),
+            AppShimmerBox(width: 88, height: 76, borderRadius: 9),
             SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -573,6 +584,8 @@ class _BookingSkeleton extends StatelessWidget {
             ),
           ],
         ),
+        SizedBox(height: 12),
+        AppShimmerBox(width: double.infinity, height: 38, borderRadius: 10),
       ],
     ),
   );
@@ -701,11 +714,13 @@ class _BookingTab extends StatelessWidget {
 class _BookingCard extends StatelessWidget {
   const _BookingCard({
     required this.booking,
+    required this.onDetail,
     required this.onPay,
     required this.onCancel,
     required this.onReview,
   });
   final Map<String, dynamic> booking;
+  final VoidCallback onDetail;
   final VoidCallback onPay;
   final VoidCallback onCancel;
   final VoidCallback onReview;
@@ -725,11 +740,18 @@ class _BookingCard extends StatelessWidget {
     final passengers = _passengers(booking).length;
 
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.borderLight),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -757,14 +779,14 @@ class _BookingCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 11),
           Row(
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(9),
                 child: SizedBox(
-                  width: 72,
-                  height: 64,
+                  width: 88,
+                  height: 76,
                   child: image.isEmpty
                       ? const ColoredBox(
                           color: AppColors.borderLight,
@@ -786,7 +808,7 @@ class _BookingCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -824,7 +846,7 @@ class _BookingCard extends StatelessWidget {
                   Text(
                     _vnd(_bookingAmount(booking)),
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 13,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -854,10 +876,445 @@ class _BookingCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onDetail,
+                  icon: const Icon(Icons.visibility_outlined, size: 16),
+                  label: const Text('Chi tiết'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 38),
+                    textStyle: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
+}
+
+class _BookingDetailSheet extends StatelessWidget {
+  const _BookingDetailSheet({required this.booking});
+
+  final Map<String, dynamic> booking;
+
+  @override
+  Widget build(BuildContext context) {
+    final passengers = _passengers(booking);
+    final amount = _bookingAmount(booking);
+    final original =
+        double.tryParse(
+          '${booking['original_amount'] ?? passengers.fold<num>(0, (sum, item) => sum + (item is Map ? (double.tryParse('${item['price'] ?? 0}') ?? 0) : 0))}',
+        ) ??
+        amount;
+    final discount =
+        double.tryParse('${booking['discount_amount'] ?? ''}') ??
+        math.max(0, original - amount);
+    final created =
+        booking['created_at'] ??
+        booking['booking_date'] ??
+        booking['booked_at'];
+    final contact = '${booking['contact_phone'] ?? booking['phone'] ?? '-'}';
+    final method = '${booking['payment_method'] ?? '-'}';
+
+    return DraggableScrollableSheet(
+      initialChildSize: .88,
+      minChildSize: .55,
+      maxChildSize: .96,
+      expand: false,
+      builder: (context, controller) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: CustomScrollView(
+          controller: controller,
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 42,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.border,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'CHI TIẾT BOOKING',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.2,
+                                  color: AppColors.brand,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                _bookingCode(booking),
+                                style: const TextStyle(
+                                  fontSize: 21,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Đã tạo ${_formatDate(created)}',
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  color: AppColors.muted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton.filledTonal(
+                          tooltip: 'Đóng',
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close_rounded, size: 19),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 10,
+                      crossAxisSpacing: 10,
+                      childAspectRatio: 1.75,
+                      children: [
+                        _DetailInfo(
+                          label: 'Tour',
+                          value: _tourName(booking),
+                          icon: Icons.card_travel_outlined,
+                        ),
+                        _DetailInfo(
+                          label: 'Khởi hành',
+                          value: _formatDate(_bookingDate(booking)),
+                          icon: Icons.calendar_month_outlined,
+                        ),
+                        _DetailInfo(
+                          label: 'Trạng thái booking',
+                          icon: Icons.fact_check_outlined,
+                          child: _StatusChip(status: _bookingStatus(booking)),
+                        ),
+                        _DetailInfo(
+                          label: 'Thanh toán',
+                          icon: Icons.payments_outlined,
+                          child: _StatusChip(status: _paymentStatus(booking)),
+                        ),
+                        _DetailInfo(
+                          label: 'Số điện thoại',
+                          value: contact,
+                          icon: Icons.phone_outlined,
+                        ),
+                        _DetailInfo(
+                          label: 'Phương thức',
+                          value: method,
+                          icon: Icons.account_balance_wallet_outlined,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 22),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Hành khách',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.accentLight,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text(
+                            '${passengers.length} người',
+                            style: const TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.brand,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    if (passengers.isEmpty)
+                      const _EmptyPassengers()
+                    else
+                      ...passengers.asMap().entries.map(
+                        (entry) => _PassengerItem(
+                          passenger: entry.value is Map
+                              ? Map<String, dynamic>.from(entry.value)
+                              : const {},
+                          index: entry.key,
+                        ),
+                      ),
+                    const SizedBox(height: 18),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        children: [
+                          _PriceLine(label: 'Giá gốc', amount: original),
+                          const SizedBox(height: 10),
+                          _PriceLine(
+                            label: booking['coupon_id'] == null
+                                ? 'Giảm giá'
+                                : 'Mã giảm giá #${booking['coupon_id']}',
+                            amount: -discount,
+                            muted: true,
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Divider(height: 1),
+                          ),
+                          _PriceLine(
+                            label: 'Tổng thanh toán',
+                            amount: amount,
+                            total: true,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailInfo extends StatelessWidget {
+  const _DetailInfo({
+    required this.label,
+    required this.icon,
+    this.value,
+    this.child,
+  });
+
+  final String label;
+  final IconData icon;
+  final String? value;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(13),
+      border: Border.all(color: AppColors.borderLight),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 14, color: AppColors.brand),
+            const SizedBox(width: 5),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 9, color: AppColors.muted),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 7),
+        child ??
+            Text(
+              value ?? '-',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+      ],
+    ),
+  );
+}
+
+class _PassengerItem extends StatelessWidget {
+  const _PassengerItem({required this.passenger, required this.index});
+
+  final Map<String, dynamic> passenger;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final category =
+        '${passenger['age_category'] ?? passenger['ageCategory'] ?? '-'}';
+    final price = double.tryParse('${passenger['price'] ?? 0}') ?? 0;
+    final seat = '${passenger['seat_number'] ?? '-'}';
+    final request = '${passenger['special_request'] ?? '-'}';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 9),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: AppColors.accentLight,
+            child: Text(
+              '${index + 1}',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: AppColors.brand,
+              ),
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${passenger['passenger_name'] ?? 'Hành khách ${index + 1}'}',
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  '${_categoryLabel(category)} · Ghế $seat',
+                  style: const TextStyle(fontSize: 9.5, color: AppColors.muted),
+                ),
+                if (request != '-') ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    request,
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _vnd(price),
+            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyPassengers extends StatelessWidget {
+  const _EmptyPassengers();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(22),
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: const Text(
+      'Chưa có thông tin hành khách.',
+      style: TextStyle(fontSize: 10.5, color: AppColors.muted),
+    ),
+  );
+}
+
+class _PriceLine extends StatelessWidget {
+  const _PriceLine({
+    required this.label,
+    required this.amount,
+    this.muted = false,
+    this.total = false,
+  });
+
+  final String label;
+  final double amount;
+  final bool muted;
+  final bool total;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: total ? 12 : 10.5,
+            fontWeight: total ? FontWeight.w800 : FontWeight.w600,
+            color: total
+                ? AppColors.brand
+                : muted
+                ? AppColors.muted
+                : AppColors.ink,
+          ),
+        ),
+      ),
+      Text(
+        amount < 0 ? '-${_vnd(amount.abs())}' : _vnd(amount),
+        style: TextStyle(
+          fontSize: total ? 14 : 10.5,
+          fontWeight: total ? FontWeight.w900 : FontWeight.w700,
+          color: total ? AppColors.brand : AppColors.ink,
+        ),
+      ),
+    ],
+  );
 }
 
 class _StatusChip extends StatelessWidget {
@@ -886,6 +1343,12 @@ class _StatusChip extends StatelessWidget {
         ? 'Chờ xác nhận'
         : status == 'paid'
         ? 'Đã thanh toán'
+        : status == 'unpaid'
+        ? 'Chưa thanh toán'
+        : status == 'failed'
+        ? 'Thanh toán lỗi'
+        : status == 'pending'
+        ? 'Đang chờ'
         : cancelled
         ? 'Đã hủy'
         : status == 'cancel_pending'
@@ -1098,6 +1561,13 @@ String _formatDate(dynamic value) {
 
 String _vnd(double value) =>
     '${NumberFormat.decimalPattern('vi').format(value)}đ';
+
+String _categoryLabel(String value) => switch (value.toLowerCase()) {
+  'adult' => 'Người lớn',
+  'child' => 'Trẻ em',
+  'infant' => 'Em bé',
+  _ => value,
+};
 
 (int, int) _bookingPagination(dynamic body) {
   final root = body is Map ? body : const {};
