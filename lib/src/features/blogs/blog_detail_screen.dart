@@ -126,67 +126,15 @@ class _BlogDetailScreenState extends ConsumerState<BlogDetailScreen> {
     }
     final commentId = _commentId(comment);
     if (commentId <= 0) return;
-    final controller = TextEditingController(
-      text: replying ? '' : _commentContent(comment),
-    );
     final content = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          18,
-          0,
-          18,
-          18 + MediaQuery.viewInsetsOf(sheetContext).bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              replying ? 'Trả lời bình luận' : 'Chỉnh sửa bình luận',
-              style: AppTextStyles.h4,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              minLines: 3,
-              maxLines: 7,
-              maxLength: 2000,
-              decoration: InputDecoration(
-                hintText: replying
-                    ? 'Nhập nội dung trả lời...'
-                    : 'Chỉnh sửa nội dung...',
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(sheetContext),
-                    child: const Text('Hủy'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () {
-                      final value = controller.text.trim();
-                      if (value.isNotEmpty) Navigator.pop(sheetContext, value);
-                    },
-                    child: Text(replying ? 'Gửi trả lời' : 'Lưu thay đổi'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+      builder: (_) => _CommentEditorSheet(
+        replying: replying,
+        initialText: replying ? '' : _commentContent(comment),
       ),
     );
-    controller.dispose();
     if (content == null || !mounted) return;
     final blogId = _integer(blog?['blog_id'] ?? blog?['id']);
     try {
@@ -480,7 +428,7 @@ class _BlogDetailScreenState extends ConsumerState<BlogDetailScreen> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        '${comments.length}',
+                        '${_totalCommentCount(comments)}',
                         style: AppTextStyles.caption.copyWith(
                           color: AppColors.brand,
                           fontWeight: FontWeight.w800,
@@ -539,6 +487,85 @@ class _ContentBlock {
   const _ContentBlock(this.text, this.heading);
   final String text;
   final bool heading;
+}
+
+class _CommentEditorSheet extends StatefulWidget {
+  const _CommentEditorSheet({
+    required this.replying,
+    required this.initialText,
+  });
+
+  final bool replying;
+  final String initialText;
+
+  @override
+  State<_CommentEditorSheet> createState() => _CommentEditorSheetState();
+}
+
+class _CommentEditorSheetState extends State<_CommentEditorSheet> {
+  late final TextEditingController controller = TextEditingController(
+    text: widget.initialText,
+  );
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.fromLTRB(
+      18,
+      0,
+      18,
+      18 + MediaQuery.viewInsetsOf(context).bottom,
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.replying ? 'Trả lời bình luận' : 'Chỉnh sửa bình luận',
+          style: AppTextStyles.h4,
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: controller,
+          autofocus: true,
+          minLines: 3,
+          maxLines: 7,
+          maxLength: 2000,
+          decoration: InputDecoration(
+            hintText: widget.replying
+                ? 'Nhập nội dung trả lời...'
+                : 'Chỉnh sửa nội dung...',
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Hủy'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton(
+                onPressed: () {
+                  final value = controller.text.trim();
+                  if (value.isNotEmpty) Navigator.pop(context, value);
+                },
+                child: Text(widget.replying ? 'Gửi trả lời' : 'Lưu thay đổi'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 }
 
 class _CommentComposer extends StatelessWidget {
@@ -867,3 +894,15 @@ int _commentUserId(Map comment) {
 
 String _commentContent(Map comment) =>
     '${comment['content'] ?? comment['comment'] ?? ''}';
+
+int _totalCommentCount(List<Map<String, dynamic>> items) {
+  var total = items.length;
+  for (final item in items) {
+    final replies = [
+      ..._records(item['replies']),
+      ..._records(item['Replies']),
+    ];
+    total += _totalCommentCount(replies);
+  }
+  return total;
+}

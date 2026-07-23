@@ -21,18 +21,46 @@ class _TravelMapScreenState extends ConsumerState<TravelMapScreen> {
   final _map = MapController();
   final _search = TextEditingController();
   List<_MapMarker> _markers = [];
+  List<Map<String, dynamic>> _categories = [];
   _MapMarker? _selected;
   bool _loading = true;
   bool _locating = false;
   bool? _has360;
   double? _minRating;
   bool _popular = false;
+  String? _categoryId;
+  double _radius = 5;
+  LatLng? _userPosition;
+  bool _satellite = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _loadCategories();
     _load();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final response = await ref
+          .read(dioProvider)
+          .get('/destination-categories');
+      dynamic data = response.data;
+      if (data is Map && data['data'] != null) data = data['data'];
+      if (data is Map) {
+        data = data['destination_categories'] ?? data['categories'] ?? data;
+      }
+      if (!mounted || data is! List) return;
+      setState(() {
+        _categories = data
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList();
+      });
+    } catch (_) {
+      // Category metadata is optional; the map still works without it.
+    }
   }
 
   @override
@@ -55,6 +83,7 @@ class _TravelMapScreenState extends ConsumerState<TravelMapScreen> {
             queryParameters: {
               if (_search.text.trim().isNotEmpty)
                 'keyword': _search.text.trim(),
+              if (_categoryId != null) 'destination_category_id': _categoryId,
               if (_has360 != null) 'has_view360': _has360,
               if (_minRating != null) 'min_rating': _minRating,
               if (_popular) 'popular_only': true,
@@ -101,7 +130,7 @@ class _TravelMapScreenState extends ConsumerState<TravelMapScreen> {
             queryParameters: {
               'lat': position.latitude,
               'lng': position.longitude,
-              'radius': 5,
+              'radius': _radius,
             },
           );
       final markers = _parseMarkers(response.data);
@@ -110,6 +139,7 @@ class _TravelMapScreenState extends ConsumerState<TravelMapScreen> {
         _markers = markers;
         _selected = markers.isEmpty ? null : markers.first;
         _error = null;
+        _userPosition = LatLng(position.latitude, position.longitude);
       });
       _map.move(LatLng(position.latitude, position.longitude), 13);
     } catch (error) {
@@ -121,6 +151,124 @@ class _TravelMapScreenState extends ConsumerState<TravelMapScreen> {
     } finally {
       if (mounted) setState(() => _locating = false);
     }
+  }
+
+  Future<void> _showFilters() async {
+    var categoryId = _categoryId;
+    var radius = _radius;
+    var has360 = _has360;
+    var minRating = _minRating;
+    var popular = _popular;
+    final apply = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Bộ lọc bản đồ',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 18),
+                DropdownButtonFormField<String>(
+                  initialValue: categoryId,
+                  decoration: const InputDecoration(labelText: 'Danh mục'),
+                  items: [
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('Tất cả danh mục'),
+                    ),
+                    ..._categories.map((item) {
+                      final id =
+                          '${item['destination_category_id'] ?? item['id'] ?? ''}';
+                      return DropdownMenuItem(
+                        value: id,
+                        child: Text('${item['name'] ?? 'Danh mục'}'),
+                      );
+                    }),
+                  ],
+                  onChanged: (value) => setSheetState(() => categoryId = value),
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<double>(
+                  initialValue: radius,
+                  decoration: const InputDecoration(
+                    labelText: 'Bán kính tìm quanh đây',
+                  ),
+                  items: const [2.0, 5.0, 10.0, 25.0, 50.0]
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text('${value.toInt()} km'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) =>
+                      setSheetState(() => radius = value ?? 5),
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<double?>(
+                  initialValue: minRating,
+                  decoration: const InputDecoration(
+                    labelText: 'Đánh giá tối thiểu',
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: null,
+                      child: Text('Mọi mức đánh giá'),
+                    ),
+                    DropdownMenuItem(value: 3, child: Text('3 sao trở lên')),
+                    DropdownMenuItem(value: 4, child: Text('4 sao trở lên')),
+                    DropdownMenuItem(
+                      value: 4.5,
+                      child: Text('4.5 sao trở lên'),
+                    ),
+                    DropdownMenuItem(value: 5, child: Text('5 sao')),
+                  ],
+                  onChanged: (value) => setSheetState(() => minRating = value),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Chỉ địa điểm có View360'),
+                  value: has360 == true,
+                  onChanged: (value) =>
+                      setSheetState(() => has360 = value ? true : null),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Chỉ địa điểm phổ biến'),
+                  value: popular,
+                  onChanged: (value) => setSheetState(() => popular = value),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Áp dụng bộ lọc'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (apply != true || !mounted) return;
+    setState(() {
+      _categoryId = categoryId;
+      _radius = radius;
+      _has360 = has360;
+      _minRating = minRating;
+      _popular = popular;
+    });
+    await _load();
   }
 
   void _focusMarkers(List<_MapMarker> markers) {
@@ -167,9 +315,24 @@ class _TravelMapScreenState extends ConsumerState<TravelMapScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: _satellite
+                    ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+                    : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.travellens.app',
               ),
+              if (_userPosition != null)
+                CircleLayer(
+                  circles: [
+                    CircleMarker(
+                      point: _userPosition!,
+                      radius: _radius * 1000,
+                      useRadiusInMeter: true,
+                      color: const Color(0x332563EB),
+                      borderColor: const Color(0xFF2563EB),
+                      borderStrokeWidth: 2,
+                    ),
+                  ],
+                ),
               MarkerLayer(
                 markers: _markers
                     .map(
@@ -245,6 +408,55 @@ class _TravelMapScreenState extends ConsumerState<TravelMapScreen> {
                 ),
               ),
               const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: _locating ? null : _nearby,
+                      icon: _locating
+                          ? const SizedBox.square(
+                              dimension: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.near_me_rounded, size: 16),
+                      label: Text(
+                        _locating
+                            ? 'Đang định vị...'
+                            : 'Đề xuất quanh đây (${_radius.toInt()} km)',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 38),
+                        textStyle: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                  IconButton.filledTonal(
+                    tooltip: 'Bộ lọc',
+                    onPressed: _showFilters,
+                    icon: const Icon(Icons.tune_rounded, size: 18),
+                  ),
+                  const SizedBox(width: 3),
+                  IconButton.filledTonal(
+                    tooltip: _satellite ? 'Bản đồ đường phố' : 'Bản đồ vệ tinh',
+                    onPressed: () => setState(() => _satellite = !_satellite),
+                    icon: Icon(
+                      _satellite
+                          ? Icons.map_outlined
+                          : Icons.satellite_alt_outlined,
+                      size: 18,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               SizedBox(
                 height: 32,
                 child: ListView(
@@ -303,7 +515,7 @@ class _TravelMapScreenState extends ConsumerState<TravelMapScreen> {
           Positioned(
             left: 14,
             right: 14,
-            top: 102,
+            top: 148,
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -323,7 +535,7 @@ class _TravelMapScreenState extends ConsumerState<TravelMapScreen> {
         if (!_loading && _error == null)
           Positioned(
             left: 14,
-            top: 102,
+            top: 148,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
               decoration: BoxDecoration(
