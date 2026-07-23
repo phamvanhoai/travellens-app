@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import '../config/app_config.dart';
 import '../core/network/api_client.dart';
 import '../design/app_colors.dart';
+import '../widgets/booking_progress.dart';
 import '../design/app_widgets.dart';
 
 class PaymentCheckoutScreen extends ConsumerStatefulWidget {
@@ -198,6 +199,8 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            BookingProgress(currentStep: _status == 'paid' ? 3 : 2),
+            const SizedBox(height: 22),
             Row(
               children: [
                 const Expanded(

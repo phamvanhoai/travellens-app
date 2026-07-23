@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import '../config/app_config.dart';
 import '../core/network/api_client.dart';
 import '../design/app_colors.dart';
+import '../widgets/booking_progress.dart';
 import '../design/app_widgets.dart';
 
 class BookingScreen extends ConsumerStatefulWidget {
@@ -353,7 +354,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
           child: Column(
             children: [
-              const _BookingSteps(),
+              const BookingProgress(currentStep: 1),
               const SizedBox(height: 18),
               _SelectedTour(
                 name: name,
@@ -706,67 +707,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       ),
     );
   }
-}
-
-class _BookingSteps extends StatelessWidget {
-  const _BookingSteps();
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      const _Step(number: '1', label: 'Thông tin', active: true),
-      Expanded(
-        child: Container(
-          height: 1,
-          margin: const EdgeInsets.only(bottom: 17),
-          color: AppColors.borderLight,
-        ),
-      ),
-      const _Step(number: '2', label: 'Thanh toán'),
-      Expanded(
-        child: Container(
-          height: 1,
-          margin: const EdgeInsets.only(bottom: 17),
-          color: AppColors.borderLight,
-        ),
-      ),
-      const _Step(number: '3', label: 'Xác nhận'),
-    ],
-  );
-}
-
-class _Step extends StatelessWidget {
-  const _Step({required this.number, required this.label, this.active = false});
-  final String number, label;
-  final bool active;
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 68,
-    child: Column(
-      children: [
-        CircleAvatar(
-          radius: 10,
-          backgroundColor: active ? AppColors.brand : AppColors.borderLight,
-          child: Text(
-            number,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: active ? Colors.white : AppColors.subtle,
-            ),
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 9,
-            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            color: active ? AppColors.brand : AppColors.subtle,
-          ),
-        ),
-      ],
-    ),
-  );
 }
 
 class _SelectedTour extends StatelessWidget {
