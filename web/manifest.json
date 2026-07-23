@@ -1,6 +1,6 @@
 {
-    "name": "travellens_app",
-    "short_name": "travellens_app",
+    "name": "Travellens",
+    "short_name": "Travellens",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
