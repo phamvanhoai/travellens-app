@@ -1077,6 +1077,8 @@ class _Dot extends StatelessWidget {
   );
 }
 
+// Compact alternative retained for related-content layouts.
+// ignore: unused_element
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({
     required this.title,
@@ -1099,6 +1101,8 @@ class _SectionHeader extends StatelessWidget {
   );
 }
 
+// Compact alternative retained for related-content layouts.
+// ignore: unused_element
 class _LocationCard extends StatelessWidget {
   const _LocationCard({
     required this.item,
@@ -1150,6 +1154,8 @@ class _LocationCard extends StatelessWidget {
   }
 }
 
+// Compact alternative retained for related-content layouts.
+// ignore: unused_element
 class _TourCard extends StatelessWidget {
   const _TourCard({
     required this.item,

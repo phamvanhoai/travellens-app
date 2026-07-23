@@ -200,7 +200,7 @@ class _TourDetailScreenState extends ConsumerState<TourDetailScreen>
                     CachedNetworkImage(
                       imageUrl: image,
                       fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => Container(
+                      errorWidget: (_, _, _) => Container(
                         color: const Color(0xffe8eef5),
                         child: const Icon(Icons.landscape_rounded, size: 54),
                       ),
@@ -721,7 +721,7 @@ class _TourGallery extends StatelessWidget {
         barrierColor: Colors.black,
         transitionDuration: const Duration(milliseconds: 220),
         reverseTransitionDuration: const Duration(milliseconds: 180),
-        pageBuilder: (_, animation, __) => FadeTransition(
+        pageBuilder: (_, animation, _) => FadeTransition(
           opacity: animation,
           child: _GalleryViewer(images: images, initialIndex: index),
         ),

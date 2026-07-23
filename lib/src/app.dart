@@ -7,7 +7,7 @@ class TravelLensApp extends ConsumerWidget {
   const TravelLensApp({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) => MaterialApp.router(
-    title: 'TravelLens',
+    title: 'Travellens',
     debugShowCheckedModeBanner: false,
     theme: AppTheme.light,
     routerConfig: ref.watch(routerProvider),

@@ -158,19 +158,26 @@ class _DestinationsScreenState extends ConsumerState<DestinationsScreen> {
             children: [
               Text('Sắp xếp theo', style: AppTextStyles.h4),
               const SizedBox(height: 10),
-              for (var i = 0; i < _sorts.length; i++)
-                RadioListTile<int>(
-                  value: i,
-                  groupValue: _sortIndex,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(_sorts[i].$1),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    Navigator.pop(sheetContext);
-                    setState(() => _sortIndex = value);
-                    _apply();
-                  },
+              RadioGroup<int>(
+                groupValue: _sortIndex,
+                onChanged: (value) {
+                  if (value == null) return;
+                  Navigator.pop(sheetContext);
+                  setState(() => _sortIndex = value);
+                  _apply();
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < _sorts.length; i++)
+                      RadioListTile<int>(
+                        value: i,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(_sorts[i].$1),
+                      ),
+                  ],
                 ),
+              ),
             ],
           ),
         ),
@@ -399,6 +406,8 @@ class _CategoryPill extends StatelessWidget {
   );
 }
 
+// Compact list variant retained for narrow destination layouts.
+// ignore: unused_element
 class _DestinationListCard extends StatelessWidget {
   const _DestinationListCard({
     required this.item,

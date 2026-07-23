@@ -552,6 +552,8 @@ class _TourFilter extends StatelessWidget {
   );
 }
 
+// Compact list variant retained for narrow tour layouts.
+// ignore: unused_element
 class _TourCard extends StatelessWidget {
   const _TourCard({required this.tour});
   final Map<String, dynamic> tour;

@@ -233,43 +233,51 @@ class _PaymentScreenState extends State<PaymentScreen> {
         const SizedBox(height: 22),
         Text('Phương thức thanh toán', style: AppTextStyles.label),
         const SizedBox(height: 10),
-        for (var i = 0; i < 4; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 9),
-            child: _Box(
-              child: Row(
-                children: [
-                  Radio<int>(
-                    value: i,
-                    groupValue: selected,
-                    onChanged: (v) => setState(() => selected = v!),
-                  ),
-                  Expanded(
-                    child: Text(
-                      const [
-                        'Thẻ tín dụng / Ghi nợ',
-                        'Ví điện tử',
-                        'Chuyển khoản ngân hàng',
-                        'Thanh toán tại cửa hàng',
-                      ][i],
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.ink,
-                      ),
+        RadioGroup<int>(
+          groupValue: selected,
+          onChanged: (value) {
+            if (value != null) setState(() => selected = value);
+          },
+          child: Column(
+            children: [
+              for (var i = 0; i < 4; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 9),
+                  child: _Box(
+                    child: Row(
+                      children: [
+                        Radio<int>(value: i),
+                        Expanded(
+                          child: Text(
+                            const [
+                              'Thẻ tín dụng / Ghi nợ',
+                              'Ví điện tử',
+                              'Chuyển khoản ngân hàng',
+                              'Thanh toán tại cửa hàng',
+                            ][i],
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.ink,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          const [
+                            Icons.credit_card,
+                            Icons.wallet,
+                            Icons.account_balance,
+                            Icons.store,
+                          ][i],
+                          color: i == selected
+                              ? AppColors.brand
+                              : AppColors.subtle,
+                        ),
+                      ],
                     ),
                   ),
-                  Icon(
-                    const [
-                      Icons.credit_card,
-                      Icons.wallet,
-                      Icons.account_balance,
-                      Icons.store,
-                    ][i],
-                    color: i == selected ? AppColors.brand : AppColors.subtle,
-                  ),
-                ],
-              ),
-            ),
+                ),
+            ],
           ),
+        ),
         const SizedBox(height: 8),
         _Box(child: const _Row('Tổng thanh toán', '2.400.000đ', strong: true)),
         const SizedBox(height: 14),
