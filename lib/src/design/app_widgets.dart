@@ -178,7 +178,9 @@ class AppRatingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textColor = light ? Colors.white : AppColors.ink;
-    final mutedColor = light ? Colors.white.withValues(alpha: .65) : AppColors.muted;
+    final mutedColor = light
+        ? Colors.white.withValues(alpha: .65)
+        : AppColors.muted;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -186,7 +188,10 @@ class AppRatingRow extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           rating > 0 ? rating.toStringAsFixed(1) : 'New',
-          style: AppTextStyles.label.copyWith(color: textColor, fontSize: size - 2),
+          style: AppTextStyles.label.copyWith(
+            color: textColor,
+            fontSize: size - 2,
+          ),
         ),
         if (count != null) ...[
           const SizedBox(width: 4),
@@ -286,8 +291,12 @@ class AppEmptyState extends StatelessWidget {
 // ─── Error State ─────────────────────────────────────────────────────────────
 
 class AppErrorState extends StatelessWidget {
-  const AppErrorState({super.key, String? message, String? error, required this.onRetry})
-      : _message = error ?? message ?? 'Something went wrong';
+  const AppErrorState({
+    super.key,
+    String? message,
+    String? error,
+    required this.onRetry,
+  }) : _message = error ?? message ?? 'Đã xảy ra lỗi';
   final String _message;
   final VoidCallback onRetry;
 
@@ -305,17 +314,25 @@ class AppErrorState extends StatelessWidget {
               color: AppColors.errorSoft,
               borderRadius: BorderRadius.circular(22),
             ),
-            child: const Icon(Icons.cloud_off_rounded, size: 34, color: AppColors.error),
+            child: const Icon(
+              Icons.cloud_off_rounded,
+              size: 34,
+              color: AppColors.error,
+            ),
           ),
           const SizedBox(height: 18),
-          Text('Something went wrong', style: AppTextStyles.h4),
+          Text('Đã xảy ra lỗi', style: AppTextStyles.h4),
           const SizedBox(height: 8),
-          Text(_message, style: AppTextStyles.bodySmall, textAlign: TextAlign.center),
+          Text(
+            _message,
+            style: AppTextStyles.bodySmall,
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 20),
           FilledButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text('Try again'),
+            label: const Text('Thử lại'),
           ),
         ],
       ),
@@ -352,7 +369,7 @@ class AppSectionHeader extends StatelessWidget {
           ],
         ),
       ),
-      ?trailing
+      ?trailing,
     ],
   );
 }

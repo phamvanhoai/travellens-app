@@ -50,11 +50,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       Color(0xFFE0F2FE),
     ),
     (
-      'AI Assistant',
+      'Trợ lý AI',
       Icons.auto_awesome_rounded,
       '/ai',
       Color(0xFF9333EA),
       Color(0xFFF3E8FF),
+    ),
+    (
+      'Cẩm nang',
+      Icons.menu_book_rounded,
+      '/blogs',
+      Color(0xFF059669),
+      Color(0xFFECFDF5),
     ),
   ];
 
@@ -107,9 +114,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user ?? const <String, dynamic>{};
-    final fullName = '${user['name'] ?? 'Traveler'}';
+    final fullName = '${user['name'] ?? 'Khách du lịch'}';
     final name = fullName.trim().isEmpty
-        ? 'Traveler'
+        ? 'Khách du lịch'
         : fullName.trim().split(RegExp(r'\s+')).last;
     final avatar = AppConfig.assetUrl('${user['avatar_url'] ?? ''}');
 
@@ -338,7 +345,7 @@ class _HeroBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Travel the world',
+                  'Khám phá thế giới',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 21,
@@ -368,39 +375,43 @@ class _ShortcutRow extends StatelessWidget {
   const _ShortcutRow({required this.items});
   final List<(String, IconData, String, Color, Color)> items;
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    children: items
-        .map(
-          (item) => InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => context.push(item.$3),
-            child: SizedBox(
-              width: 58,
-              child: Column(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: item.$5,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(item.$2, color: item.$4, size: 18),
+  Widget build(BuildContext context) => SizedBox(
+    height: 62,
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      itemCount: items.length,
+      separatorBuilder: (_, _) => const SizedBox(width: 8),
+      itemBuilder: (_, index) {
+        final item = items[index];
+        return InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => context.push(item.$3),
+          child: SizedBox(
+            width: 56,
+            child: Column(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: item.$5,
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(height: 5),
-                  Text(
-                    item.$1,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 8.5, color: AppColors.ink),
-                  ),
-                ],
-              ),
+                  child: Icon(item.$2, color: item.$4, size: 18),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  item.$1,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 8.5, color: AppColors.ink),
+                ),
+              ],
             ),
           ),
-        )
-        .toList(),
+        );
+      },
+    ),
   );
 }
 

@@ -11,6 +11,7 @@ import '../../core/network/api_client.dart';
 import '../../design/app_colors.dart';
 import '../../design/app_text_styles.dart';
 import '../../design/app_widgets.dart';
+import '../../widgets/network_map_image.dart';
 import '../auth/auth_controller.dart';
 import 'saved_destinations_controller.dart';
 
@@ -686,6 +687,8 @@ class _RecordsTab extends StatelessWidget {
                   context.push('/locations/$id');
                 } else if (type == 'tour' && id > 0) {
                   context.push('/tours/$id');
+                } else if (type == 'blog' && id > 0) {
+                  context.push('/blogs/$id');
                 }
               },
             ),
@@ -943,12 +946,7 @@ class _MapCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (image.isNotEmpty)
-            CachedNetworkImage(
-              imageUrl: image,
-              width: double.infinity,
-              height: 176,
-              fit: BoxFit.cover,
-            ),
+            SizedBox(height: 176, child: NetworkMapImage(url: image)),
           Padding(
             padding: const EdgeInsets.all(12),
             child: Text(
@@ -1313,6 +1311,10 @@ String? _image(Map item) =>
 
 int _relatedId(Map item, String type) =>
     int.tryParse(
-      '${type == 'location' ? item['location_id'] ?? item['id'] : item['tour_id'] ?? item['id'] ?? 0}',
+      '${type == 'location'
+          ? item['location_id'] ?? item['id']
+          : type == 'blog'
+          ? item['blog_id'] ?? item['id']
+          : item['tour_id'] ?? item['id'] ?? 0}',
     ) ??
     0;

@@ -1,7 +1,9 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/auth_controller.dart';
+import '../config/app_config.dart';
 import '../design/app_colors.dart';
 import '../design/app_text_styles.dart';
 
@@ -12,8 +14,11 @@ class AccountScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
     final user = auth.user ?? {};
-    final name = '${user['name'] ?? 'Traveler'}';
+    final name = '${user['name'] ?? 'Khách du lịch'}';
     final email = '${user['email'] ?? ''}';
+    final avatar = AppConfig.assetUrl(
+      '${user['avatar_url'] ?? user['avatar'] ?? ''}',
+    );
     final isLoggedIn = auth.authenticated;
 
     return Scaffold(
@@ -22,7 +27,7 @@ class AccountScreen extends ConsumerWidget {
         slivers: [
           SliverAppBar(
             pinned: true,
-            title: const Text('Your space'),
+            title: const Text('Không gian của bạn'),
             backgroundColor: Colors.white,
           ),
           SliverPadding(
@@ -31,35 +36,35 @@ class AccountScreen extends ConsumerWidget {
               children: [
                 // Profile Header
                 if (isLoggedIn)
-                  _ProfileHeader(name: name, email: email)
+                  _ProfileHeader(name: name, email: email, avatar: avatar)
                 else
                   _GuestHeader(),
                 const SizedBox(height: 20),
 
                 // Journeys section
-                const _SectionTitle('Your journeys'),
+                const _SectionTitle('Hành trình của bạn'),
                 const SizedBox(height: 9),
                 _MenuGroup(
                   items: [
                     _MenuItem(
-                      'My bookings',
-                      'Upcoming and past tours',
+                      'Booking của tôi',
+                      'Tour sắp tới và đã tham gia',
                       Icons.calendar_month_rounded,
                       '/bookings',
                       AppColors.brand,
                       const Color(0xFFECFDF8),
                     ),
                     _MenuItem(
-                      'Payments',
-                      'Transactions and history',
+                      'Thanh toán',
+                      'Giao dịch và lịch sử thanh toán',
                       Icons.account_balance_wallet_rounded,
                       '/payments',
                       const Color(0xFF7C3AED),
                       const Color(0xFFF5F3FF),
                     ),
                     _MenuItem(
-                      'Wishlist',
-                      'Tours you want to experience',
+                      'Yêu thích',
+                      'Tour và điểm đến bạn đã lưu',
                       Icons.favorite_rounded,
                       '/wishlist',
                       const Color(0xFFDB2777),
@@ -70,37 +75,37 @@ class AccountScreen extends ConsumerWidget {
 
                 if (isLoggedIn) ...[
                   const SizedBox(height: 20),
-                  const _SectionTitle('Community & planning'),
+                  const _SectionTitle('Cộng đồng và kế hoạch'),
                   const SizedBox(height: 9),
                   _MenuGroup(
                     items: [
                       _MenuItem(
-                        'My stories',
-                        'Manage your 24-hour moments',
+                        'Tin của tôi',
+                        'Quản lý khoảnh khắc trong 24 giờ',
                         Icons.auto_stories_rounded,
                         '/stories',
                         const Color(0xFF0284C7),
                         const Color(0xFFEFF6FF),
                       ),
                       _MenuItem(
-                        'Group trips',
-                        'Plan adventures together',
+                        'Chuyến đi nhóm',
+                        'Cùng nhau lên kế hoạch hành trình',
                         Icons.groups_rounded,
                         '/group-trips',
                         const Color(0xFFEA580C),
                         const Color(0xFFFFF7ED),
                       ),
                       _MenuItem(
-                        'Invitations',
-                        'Trips your friends shared',
+                        'Lời mời',
+                        'Chuyến đi bạn bè chia sẻ với bạn',
                         Icons.mark_email_unread_rounded,
                         '/invitations',
                         const Color(0xFF16A34A),
                         const Color(0xFFF0FDF4),
                       ),
                       _MenuItem(
-                        'Blocked users',
-                        'Manage your privacy',
+                        'Người dùng đã chặn',
+                        'Quản lý quyền riêng tư',
                         Icons.shield_rounded,
                         '/blocked-users',
                         AppColors.muted,
@@ -123,7 +128,7 @@ class AccountScreen extends ConsumerWidget {
                       minimumSize: const Size(0, 44),
                     ),
                     icon: const Icon(Icons.logout_rounded, size: 18),
-                    label: const Text('Sign out'),
+                    label: const Text('Đăng xuất'),
                   ),
                 ] else ...[
                   const SizedBox(height: 20),
@@ -139,8 +144,12 @@ class AccountScreen extends ConsumerWidget {
 }
 
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.name, required this.email});
-  final String name, email;
+  const _ProfileHeader({
+    required this.name,
+    required this.email,
+    required this.avatar,
+  });
+  final String name, email, avatar;
 
   @override
   Widget build(BuildContext context) {
@@ -179,16 +188,17 @@ class _ProfileHeader extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Center(
-                child: Text(
-                  name.characters.first.toUpperCase(),
-                  style: const TextStyle(
-                    color: AppColors.brand,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
+              clipBehavior: Clip.antiAlias,
+              child: avatar.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: avatar,
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
+                      placeholder: (_, _) => _AvatarFallback(name: name),
+                      errorWidget: (_, _, _) => _AvatarFallback(name: name),
+                    )
+                  : _AvatarFallback(name: name),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -196,7 +206,7 @@ class _ProfileHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'WELCOME BACK',
+                    'CHÀO MỪNG TRỞ LẠI',
                     style: AppTextStyles.labelSmall.copyWith(
                       color: Colors.white.withValues(alpha: .7),
                       fontSize: 8,
@@ -258,10 +268,10 @@ class _GuestHeader extends StatelessWidget {
             color: AppColors.subtle,
           ),
           const SizedBox(height: 10),
-          Text('Welcome to TravelLens', style: AppTextStyles.h4),
+          Text('Chào mừng đến TravelLens', style: AppTextStyles.h4),
           const SizedBox(height: 6),
           Text(
-            'Sign in to access your bookings, trips, and more.',
+            'Đăng nhập để xem booking, chuyến đi và nhiều tiện ích khác.',
             style: AppTextStyles.bodySmall,
             textAlign: TextAlign.center,
           ),
@@ -271,12 +281,32 @@ class _GuestHeader extends StatelessWidget {
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(44),
             ),
-            child: const Text('Sign in'),
+            child: const Text('Đăng nhập'),
           ),
         ],
       ),
     );
   }
+}
+
+class _AvatarFallback extends StatelessWidget {
+  const _AvatarFallback({required this.name});
+  final String name;
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: Colors.white,
+    child: Center(
+      child: Text(
+        name.isEmpty ? '?' : name.characters.first.toUpperCase(),
+        style: const TextStyle(
+          color: AppColors.brand,
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    ),
+  );
 }
 
 class _SignInPrompt extends StatelessWidget {
@@ -301,10 +331,10 @@ class _SignInPrompt extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Sign in required', style: AppTextStyles.label),
+                Text('Yêu cầu đăng nhập', style: AppTextStyles.label),
                 const SizedBox(height: 3),
                 Text(
-                  'Access your community features after signing in.',
+                  'Đăng nhập để sử dụng các tính năng cộng đồng.',
                   style: AppTextStyles.bodySmall,
                 ),
               ],

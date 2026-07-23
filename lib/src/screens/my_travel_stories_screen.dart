@@ -130,7 +130,7 @@ class _MyTravelStoriesScreenState extends ConsumerState<MyTravelStoriesScreen> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AppColors.surface,
     appBar: AppBar(
-      title: const Text('My Travel Stories'),
+      title: const Text('Tin du lịch của tôi'),
       actions: [
         IconButton(
           onPressed: _loading ? null : _load,
@@ -505,7 +505,7 @@ class _CreateStorySheetState extends ConsumerState<_CreateStorySheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'Thêm Travel Story',
+              'Thêm tin du lịch',
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 12),
@@ -649,7 +649,7 @@ class _StoryViewers extends ConsumerWidget {
                       separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (_, index) {
                         final viewer = viewers[index];
-                        final name = '${viewer['name'] ?? 'Traveler'}';
+                        final name = '${viewer['name'] ?? 'Khách du lịch'}';
                         final avatar = AppConfig.assetUrl(
                           '${viewer['avatar_url'] ?? ''}',
                         );

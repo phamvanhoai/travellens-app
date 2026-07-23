@@ -57,10 +57,15 @@ List<Map<String, dynamic>> unwrapList(
 
 String apiError(Object error) {
   if (error is DioException) {
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.receiveTimeout) {
+      return 'Máy chủ phản hồi quá lâu. Vui lòng thử lại sau ít phút.';
+    }
     final data = error.response?.data;
     if (data is Map)
       return '${data['message'] ?? data['error'] ?? 'Request failed'}';
-    return error.message ?? 'Unable to connect to the server.';
+    return error.message ?? 'Không thể kết nối đến máy chủ.';
   }
   return error.toString().replaceFirst('Bad state: ', '');
 }

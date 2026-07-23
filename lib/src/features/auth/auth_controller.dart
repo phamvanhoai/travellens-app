@@ -149,6 +149,11 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
+    try {
+      await _dio.post('/auth/logout');
+    } catch (_) {
+      // Always clear the local session even if the server is unreachable.
+    }
     await ref.read(tokenStorageProvider).clear();
     state = const AuthState(ready: true);
   }

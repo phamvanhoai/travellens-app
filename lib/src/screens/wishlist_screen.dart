@@ -112,7 +112,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AppColors.surface,
     appBar: AppBar(
-      title: const Text('Wishlist'),
+      title: const Text('Danh sách yêu thích'),
       actions: [
         IconButton(
           tooltip: 'Làm mới',

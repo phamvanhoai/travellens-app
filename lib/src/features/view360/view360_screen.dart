@@ -33,6 +33,8 @@ class _View360ScreenState extends ConsumerState<View360Screen> {
       gyro = false,
       showInfo = true;
   bool audioPlaying = false, muted = false;
+  bool sceneTransitioning = false;
+  Offset? transitionOrigin;
   String? error;
   _Scene? get scene => scenes.isEmpty ? null : scenes[sceneIndex];
   _Image? get image =>
@@ -58,49 +60,41 @@ class _View360ScreenState extends ConsumerState<View360Screen> {
       error = null;
     });
     try {
-      final dio = ref.read(dioProvider);
-      final responses = await Future.wait([
-        dio.get('/view360'),
-        dio.get('/view360-images'),
-        if (widget.destinationId != null)
-          dio.get('/travel-destinations/${widget.destinationId}'),
-      ]);
-      var rawScenes = unwrapList(responses[0].data, [
-        'scenes',
-        'view360',
-        'rows',
-      ]);
-      final rawImages = unwrapList(responses[1].data, [
-        'images',
-        'view360_images',
-        'rows',
-      ]);
-      if (widget.destinationId != null && responses.length > 2) {
-        dynamic detail = unwrap(responses[2].data);
+      List<Map<String, dynamic>> rawScenes = [];
+      List<Map<String, dynamic>> rawImages = [];
+      if (widget.destinationId != null) {
+        final response = await ref
+            .read(dioProvider)
+            .get('/travel-destinations/${widget.destinationId}');
+        dynamic detail = unwrap(response.data);
         if (detail is Map && detail['destination'] is Map)
           detail = detail['destination'];
         if (detail is Map && detail['travel_destination'] is Map)
           detail = detail['travel_destination'];
         final related = detail is Map ? detail['view360'] : null;
         if (related is List) {
-          final ids = related
+          rawScenes = related
               .whereType<Map>()
-              .map((e) => _num(e['view_id'] ?? e['view360_id'] ?? e['id']))
-              .toSet();
-          rawScenes = rawScenes
-              .where(
-                (e) => ids.contains(
-                  _num(e['view_id'] ?? e['view360_id'] ?? e['id']),
-                ),
-              )
+              .map((item) => Map<String, dynamic>.from(item))
               .toList();
         }
       }
-      if (widget.locationId != null) {
-        rawScenes = rawScenes
-            .where((scene) => _num(scene['location_id']) == widget.locationId)
-            .toList();
+      if (rawScenes.isEmpty) {
+        rawScenes = await _loadAllPages(
+          '/view360',
+          const ['scenes', 'view360', 'rows'],
+          queryParameters: {
+            if (widget.locationId != null) 'location_id': widget.locationId,
+          },
+        );
       }
+      rawImages = widget.destinationId != null || widget.locationId != null
+          ? await _loadImagesForScenes(rawScenes)
+          : await _loadAllPages('/view360-images', const [
+              'images',
+              'view360_images',
+              'rows',
+            ]);
       final mapped =
           rawScenes
               .map((s) {
@@ -125,11 +119,11 @@ class _View360ScreenState extends ConsumerState<View360Screen> {
                 return _Scene(
                   id,
                   _num(s['location_id']),
-                  '${s['title'] ?? '360 Scene #$id'}',
+                  '${s['title'] ?? 'Không gian 360 #$id'}',
                   _clean(
-                    '${s['description'] ?? 'Explore this location from every angle.'}',
+                    '${s['description'] ?? 'Khám phá địa điểm này từ mọi góc nhìn.'}',
                   ),
-                  '${s['language'] ?? 'Narration'}',
+                  '${s['language'] ?? 'Thuyết minh'}',
                   AppConfig.assetUrl(
                     '${s['audio_url'] ?? s['audio_file'] ?? ''}',
                   ),
@@ -158,7 +152,75 @@ class _View360ScreenState extends ConsumerState<View360Screen> {
     }
   }
 
-  void select(int i) {
+  Future<List<Map<String, dynamic>>> _loadImagesForScenes(
+    List<Map<String, dynamic>> rawScenes,
+  ) async {
+    final ids = rawScenes
+        .map(
+          (scene) =>
+              _num(scene['view_id'] ?? scene['view360_id'] ?? scene['id']),
+        )
+        .where((id) => id > 0)
+        .toSet();
+    final batches = await Future.wait(
+      ids.map(
+        (id) => _loadAllPages(
+          '/view360-images',
+          const ['images', 'view360_images', 'rows'],
+          queryParameters: {'view_id': id},
+        ),
+      ),
+    );
+    return batches.expand((batch) => batch).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadAllPages(
+    String path,
+    List<String> keys, {
+    Map<String, dynamic> queryParameters = const {},
+  }) async {
+    const limit = 100;
+    final result = <Map<String, dynamic>>[];
+    for (var page = 1; page <= 100; page++) {
+      final response = await ref
+          .read(dioProvider)
+          .get(
+            path,
+            queryParameters: {...queryParameters, 'page': page, 'limit': limit},
+          );
+      final items = unwrapList(response.data, keys);
+      result.addAll(items);
+      final totalPages = _totalPages(response.data);
+      if (items.isEmpty ||
+          (totalPages != null && page >= totalPages) ||
+          (totalPages == null && items.length < limit)) {
+        break;
+      }
+    }
+    return result;
+  }
+
+  int? _totalPages(dynamic body) {
+    if (body is! Map) return null;
+    dynamic pagination = body['pagination'];
+    if (pagination is! Map && body['data'] is Map) {
+      pagination = (body['data'] as Map)['pagination'];
+    }
+    if (pagination is! Map) return null;
+    final value = pagination['totalPages'] ?? pagination['total_pages'];
+    return value == null ? null : _num(value);
+  }
+
+  Future<void> select(int i, {Offset? origin}) async {
+    if (i == sceneIndex || sceneTransitioning) return;
+    if (origin != null) {
+      setState(() {
+        sceneTransitioning = true;
+        transitionOrigin = origin;
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 360));
+      if (!mounted) return;
+    }
     setState(() {
       sceneIndex = i;
       imageIndex = 0;
@@ -188,7 +250,7 @@ class _View360ScreenState extends ConsumerState<View360Screen> {
             (h) => _HotspotData(
               id: _num(h['hotspot_id'] ?? h['id']),
               type: '${h['type'] ?? 'info'}',
-              title: '${h['title'] ?? 'Point of interest'}',
+              title: '${h['title'] ?? 'Điểm nổi bật'}',
               description: _clean('${h['description'] ?? ''}'),
               yaw: double.tryParse('${h['yaw'] ?? 0}') ?? 0,
               pitch: double.tryParse('${h['pitch'] ?? 0}') ?? 0,
@@ -217,7 +279,7 @@ class _View360ScreenState extends ConsumerState<View360Screen> {
     } catch (_) {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Audio narration could not be played.')),
+          const SnackBar(content: Text('Không thể phát âm thanh thuyết minh.')),
         );
     }
   }
@@ -228,10 +290,10 @@ class _View360ScreenState extends ConsumerState<View360Screen> {
     if (mounted) setState(() {});
   }
 
-  void _openHotspot(_HotspotData hotspot) {
+  void _openHotspot(_HotspotData hotspot, Offset position) {
     if (hotspot.type == 'navigation' && hotspot.targetSceneId != null) {
       final index = scenes.indexWhere((s) => s.id == hotspot.targetSceneId);
-      if (index >= 0) select(index);
+      if (index >= 0) select(index, origin: position);
       return;
     }
     if (hotspot.type == 'link' && hotspot.targetUrl.isNotEmpty) {
@@ -292,15 +354,32 @@ class _View360ScreenState extends ConsumerState<View360Screen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          KeyedSubtree(
-            key: ValueKey('${s.id}-${img.id}'),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 750),
+            reverseDuration: const Duration(milliseconds: 500),
+            switchInCurve: const Cubic(.22, 1, .36, 1),
+            switchOutCurve: Curves.easeOut,
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 1.025, end: 1).animate(animation),
+                child: child,
+              ),
+            ),
             child: PanoramaViewer(
+              key: ValueKey('${s.id}-${img.id}'),
               animSpeed: rotate ? 0.12 : 0,
               sensorControl: gyro
                   ? SensorControl.orientation
                   : SensorControl.none,
               onImageLoad: () {
-                if (mounted) setState(() => imageLoading = false);
+                if (mounted) {
+                  setState(() {
+                    imageLoading = false;
+                    sceneTransitioning = false;
+                    transitionOrigin = null;
+                  });
+                }
               },
               hotspots: hotspots
                   .map(
@@ -311,7 +390,8 @@ class _View360ScreenState extends ConsumerState<View360Screen> {
                       width: 54,
                       height: 54,
                       widget: GestureDetector(
-                        onTap: () => _openHotspot(hotspot),
+                        onTapUp: (details) =>
+                            _openHotspot(hotspot, details.globalPosition),
                         child: Container(
                           decoration: BoxDecoration(
                             color: hotspot.type == 'navigation'
@@ -397,7 +477,22 @@ class _View360ScreenState extends ConsumerState<View360Screen> {
               ),
             ),
           ),
-          if (imageLoading) const _Entering(),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            child: imageLoading
+                ? const _Entering(key: ValueKey('entering'))
+                : const SizedBox.shrink(key: ValueKey('entered')),
+          ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 420),
+            reverseDuration: const Duration(milliseconds: 550),
+            child: sceneTransitioning && transitionOrigin != null
+                ? _ScenePortal(
+                    key: const ValueKey('scene-portal'),
+                    origin: transitionOrigin!,
+                  )
+                : const SizedBox.shrink(key: ValueKey('no-scene-portal')),
+          ),
           if (showInfo)
             Positioned(
               left: 16,
@@ -615,7 +710,7 @@ class _View360ScreenState extends ConsumerState<View360Screen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Scene Navigation',
+                'Danh sách không gian',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 21,
@@ -784,8 +879,70 @@ class _BottomControl extends StatelessWidget {
   );
 }
 
+class _ScenePortal extends StatelessWidget {
+  const _ScenePortal({super.key, required this.origin});
+
+  final Offset origin;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final diameter = size.longestSide * 2.4;
+    return IgnorePointer(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 520),
+            curve: const Cubic(.22, 1, .36, 1),
+            builder: (_, value, child) => Positioned(
+              left: origin.dx - diameter / 2,
+              top: origin.dy - diameter / 2,
+              width: diameter,
+              height: diameter,
+              child: Transform.scale(scale: value, child: child),
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const RadialGradient(
+                  colors: [Color(0x553B82F6), Color(0xF2030712)],
+                  stops: [.05, .62],
+                ),
+                border: Border.all(color: Colors.white24),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x663B82F6),
+                    blurRadius: 80,
+                    spreadRadius: 24,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Center(
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: .78, end: 1.08),
+              duration: const Duration(milliseconds: 850),
+              curve: Curves.easeInOut,
+              builder: (_, value, child) =>
+                  Transform.scale(scale: value, child: child),
+              child: const Icon(
+                Icons.threesixty,
+                color: Colors.white70,
+                size: 52,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _Entering extends StatelessWidget {
-  const _Entering();
+  const _Entering({super.key});
   @override
   Widget build(BuildContext context) => const IgnorePointer(
     child: ColoredBox(
@@ -797,7 +954,7 @@ class _Entering extends StatelessWidget {
             CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
             SizedBox(height: 18),
             Text(
-              'ENTERING SCENE',
+              'ĐANG VÀO KHÔNG GIAN',
               style: TextStyle(
                 color: Colors.white70,
                 fontSize: 11,
@@ -824,7 +981,7 @@ class _Loading extends StatelessWidget {
         CircularProgressIndicator(color: Colors.white),
         SizedBox(height: 18),
         Text(
-          'Preparing your virtual journey',
+          'Đang chuẩn bị hành trình thực tế ảo',
           style: TextStyle(color: Colors.white70),
         ),
       ],
@@ -852,7 +1009,7 @@ class _Empty extends StatelessWidget {
             const Icon(Icons.threesixty, color: Colors.white, size: 68),
             const SizedBox(height: 18),
             const Text(
-              'No 360 experience available',
+              'Chưa có trải nghiệm 360',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white,
@@ -863,7 +1020,7 @@ class _Empty extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               error ??
-                  'No published panorama is connected to this destination yet.',
+                  'Chưa có ảnh toàn cảnh nào được liên kết với điểm đến này.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white60, height: 1.5),
             ),
@@ -877,7 +1034,7 @@ class _Empty extends StatelessWidget {
                     )
                   : retry,
               icon: Icon(error == null ? Icons.arrow_back : Icons.refresh),
-              label: Text(error == null ? 'Back to destinations' : 'Try again'),
+              label: Text(error == null ? 'Về danh sách điểm đến' : 'Thử lại'),
             ),
           ],
         ),

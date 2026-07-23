@@ -70,14 +70,18 @@ class _EntityListScreenState extends ConsumerState<EntityListScreen> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
           child: SearchBar(
             controller: search,
-            hintText: 'Search ${widget.config.title.toLowerCase()}…',
+            hintText: 'Tìm kiếm ${widget.config.title.toLowerCase()}…',
             backgroundColor: WidgetStatePropertyAll(AppColors.surface),
             elevation: const WidgetStatePropertyAll(0),
             side: WidgetStatePropertyAll(BorderSide(color: AppColors.border)),
             shape: WidgetStatePropertyAll(
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
-            leading: const Icon(Icons.search_rounded, color: AppColors.muted, size: 20),
+            leading: const Icon(
+              Icons.search_rounded,
+              color: AppColors.muted,
+              size: 20,
+            ),
             onSubmitted: (_) => reload(),
             trailing: [
               if (search.text.isNotEmpty)
@@ -110,7 +114,7 @@ class _EntityListScreenState extends ConsumerState<EntityListScreen> {
                   return AppEmptyState(
                     icon: Icons.explore_off_rounded,
                     title: 'Nothing here yet',
-                    subtitle: 'Try a different search or check back later.',
+                    subtitle: 'Hãy thử từ khóa khác hoặc quay lại sau.',
                   );
                 return ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
@@ -165,12 +169,16 @@ class EntityCard extends StatelessWidget {
               child: image.isEmpty
                   ? ColoredBox(
                       color: AppColors.borderLight,
-                      child: const Icon(Icons.image_outlined, color: AppColors.subtle),
+                      child: const Icon(
+                        Icons.image_outlined,
+                        color: AppColors.subtle,
+                      ),
                     )
                   : CachedNetworkImage(
                       imageUrl: image,
                       fit: BoxFit.cover,
-                      errorWidget: (_, _, _) => const Icon(Icons.broken_image_outlined),
+                      errorWidget: (_, _, _) =>
+                          const Icon(Icons.broken_image_outlined),
                     ),
             ),
             Expanded(
@@ -197,7 +205,9 @@ class EntityCard extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
                           '${item['price'] ?? item['total_amount']} ${item['currency'] ?? 'VND'}',
-                          style: AppTextStyles.label.copyWith(color: AppColors.brand),
+                          style: AppTextStyles.label.copyWith(
+                            color: AppColors.brand,
+                          ),
                         ),
                       ),
                   ],
@@ -284,7 +294,7 @@ class EntityDetailScreen extends ConsumerWidget {
                   ],
                   const SizedBox(height: 16),
                   Text(
-                    '${item['description'] ?? item['short_description'] ?? 'Details are not available.'}'
+                    '${item['description'] ?? item['short_description'] ?? 'Thông tin chi tiết đang được cập nhật.'}'
                         .replaceAll(RegExp('<[^>]*>'), ' '),
                     style: AppTextStyles.body,
                   ),
@@ -294,7 +304,7 @@ class EntityDetailScreen extends ConsumerWidget {
                       onPressed: () =>
                           context.push('/booking?tourId=${_id(item)}'),
                       icon: const Icon(Icons.calendar_month_rounded),
-                      label: const Text('Book this tour'),
+                      label: const Text('Đặt tour này'),
                     ),
                   ],
                 ],
@@ -328,7 +338,9 @@ class _ListLoading extends StatelessWidget {
             width: 110,
             decoration: BoxDecoration(
               color: AppColors.borderLight,
-              borderRadius: const BorderRadius.horizontal(left: Radius.circular(17)),
+              borderRadius: const BorderRadius.horizontal(
+                left: Radius.circular(17),
+              ),
             ),
           ),
           Expanded(

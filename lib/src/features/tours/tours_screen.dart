@@ -22,13 +22,22 @@ class ToursScreen extends ConsumerStatefulWidget {
 class _ToursScreenState extends ConsumerState<ToursScreen> {
   final search = TextEditingController();
   List<Map<String, dynamic>> tours = [];
+  List<Map<String, dynamic>> categories = [];
   bool loading = true;
   String? error;
   String sort = 'newest';
+  int? categoryId;
+  String tourType = '';
+  String duration = '';
+  String language = '';
+  double? minRating;
+  num? minPrice;
+  num? maxPrice;
 
   @override
   void initState() {
     super.initState();
+    loadCategories();
     load();
   }
 
@@ -50,8 +59,23 @@ class _ToursScreenState extends ConsumerState<ToursScreen> {
             '/tours',
             queryParameters: {
               'page': 1,
-              'limit': 50,
+              'limit': 100,
               if (search.text.trim().isNotEmpty) 'search': search.text.trim(),
+              if (categoryId != null) 'tour_category_id': categoryId,
+              if (minPrice != null) 'min_price': minPrice,
+              if (maxPrice != null) 'max_price': maxPrice,
+              if (tourType.isNotEmpty) 'tour_type': tourType,
+              if (_durationRange.$1 != null) 'min_duration': _durationRange.$1,
+              if (_durationRange.$2 != null) 'max_duration': _durationRange.$2,
+              if (minRating != null) 'min_rating': minRating,
+              if (language.isNotEmpty) 'language': language,
+              if (sort == 'price_asc') ...{
+                'sortBy': 'price',
+                'sortOrder': 'ASC',
+              } else ...{
+                'sortBy': 'created_at',
+                'sortOrder': 'DESC',
+              },
             },
           );
       final items = unwrapList(response.data, ['tours']);
@@ -64,34 +88,220 @@ class _ToursScreenState extends ConsumerState<ToursScreen> {
     }
   }
 
-  void showSort() {
+  Future<void> loadCategories() async {
+    try {
+      final response = await ref
+          .read(dioProvider)
+          .get('/tour-categories', queryParameters: {'page': 1, 'limit': 100});
+      final items = unwrapList(response.data, const ['tour_categories']);
+      if (mounted) setState(() => categories = items);
+    } catch (_) {}
+  }
+
+  (int?, int?) get _durationRange => switch (duration) {
+    '1' => (1, 1),
+    '2-3' => (2, 3),
+    '4-7' => (4, 7),
+    '8+' => (8, null),
+    _ => (null, null),
+  };
+
+  int get activeFilterCount => [
+    categoryId,
+    minPrice,
+    maxPrice,
+    tourType.isEmpty ? null : tourType,
+    duration.isEmpty ? null : duration,
+    minRating,
+    language.isEmpty ? null : language,
+  ].where((value) => value != null).length;
+
+  void showFilters() {
+    var draftCategory = categoryId;
+    var draftType = tourType;
+    var draftDuration = duration;
+    var draftLanguage = language;
+    var draftRating = minRating;
+    var draftSort = sort;
+    final minController = TextEditingController(
+      text: minPrice?.toString() ?? '',
+    );
+    final maxController = TextEditingController(
+      text: maxPrice?.toString() ?? '',
+    );
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final option in const [
-              ('newest', 'Mới nhất'),
-              ('popular', 'Phổ biến'),
-              ('price_asc', 'Giá thấp nhất'),
-            ])
-              RadioListTile<String>(
-                value: option.$1,
-                groupValue: sort,
-                title: Text(option.$2),
-                onChanged: (value) {
-                  if (value == null) return;
-                  Navigator.pop(sheetContext);
-                  sort = value;
-                  setState(() => _sortTours(tours));
-                },
-              ),
-          ],
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (_, setSheetState) => SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              18,
+              0,
+              18,
+              18 + MediaQuery.viewInsetsOf(sheetContext).bottom,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('Bộ lọc tour', style: AppTextStyles.h3),
+                    ),
+                    TextButton(
+                      onPressed: () => setSheetState(() {
+                        draftCategory = null;
+                        draftType = '';
+                        draftDuration = '';
+                        draftLanguage = '';
+                        draftRating = null;
+                        draftSort = 'newest';
+                        minController.clear();
+                        maxController.clear();
+                      }),
+                      child: const Text('Xóa bộ lọc'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const _FilterLabel('Khoảng giá mỗi người'),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: minController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          hintText: 'Giá tối thiểu',
+                          suffixText: 'đ',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: maxController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          hintText: 'Giá tối đa',
+                          suffixText: 'đ',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                _FilterDropdown(
+                  label: 'Loại tour',
+                  value: draftType,
+                  options: const [
+                    ('', 'Tất cả'),
+                    ('group', 'Tour ghép đoàn'),
+                    ('private', 'Tour riêng'),
+                    ('self_guided', 'Tự túc'),
+                  ],
+                  onChanged: (value) => setSheetState(() => draftType = value),
+                ),
+                const SizedBox(height: 14),
+                _FilterDropdown(
+                  label: 'Thời lượng',
+                  value: draftDuration,
+                  options: const [
+                    ('', 'Bất kỳ'),
+                    ('1', '1 ngày'),
+                    ('2-3', '2–3 ngày'),
+                    ('4-7', '4–7 ngày'),
+                    ('8+', 'Từ 8 ngày'),
+                  ],
+                  onChanged: (value) =>
+                      setSheetState(() => draftDuration = value),
+                ),
+                const SizedBox(height: 14),
+                _FilterDropdown(
+                  label: 'Đánh giá tối thiểu',
+                  value: draftRating?.toString() ?? '',
+                  options: const [
+                    ('', 'Bất kỳ'),
+                    ('4.0', '4 sao trở lên'),
+                    ('3.0', '3 sao trở lên'),
+                    ('2.0', '2 sao trở lên'),
+                  ],
+                  onChanged: (value) =>
+                      setSheetState(() => draftRating = double.tryParse(value)),
+                ),
+                const SizedBox(height: 14),
+                _FilterDropdown(
+                  label: 'Ngôn ngữ',
+                  value: draftLanguage,
+                  options: const [
+                    ('', 'Bất kỳ'),
+                    ('vi', 'Tiếng Việt'),
+                    ('en', 'Tiếng Anh'),
+                    ('fr', 'Tiếng Pháp'),
+                    ('zh', 'Tiếng Trung'),
+                  ],
+                  onChanged: (value) =>
+                      setSheetState(() => draftLanguage = value),
+                ),
+                const SizedBox(height: 14),
+                _FilterDropdown(
+                  label: 'Sắp xếp',
+                  value: draftSort,
+                  options: const [
+                    ('newest', 'Mới nhất'),
+                    ('popular', 'Phổ biến'),
+                    ('price_asc', 'Giá thấp nhất'),
+                  ],
+                  onChanged: (value) => setSheetState(() => draftSort = value),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: () {
+                      final draftMin = num.tryParse(minController.text.trim());
+                      final draftMax = num.tryParse(maxController.text.trim());
+                      if (draftMin != null &&
+                          draftMax != null &&
+                          draftMax < draftMin) {
+                        ScaffoldMessenger.of(sheetContext).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Giá tối đa phải lớn hơn hoặc bằng giá tối thiểu.',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+                      Navigator.pop(sheetContext);
+                      setState(() {
+                        categoryId = draftCategory;
+                        minPrice = draftMin;
+                        maxPrice = draftMax;
+                        tourType = draftType;
+                        duration = draftDuration;
+                        language = draftLanguage;
+                        minRating = draftRating;
+                        sort = draftSort;
+                      });
+                      load();
+                    },
+                    child: const Text('Áp dụng bộ lọc'),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
-    );
+    ).whenComplete(() {
+      minController.dispose();
+      maxController.dispose();
+    });
   }
 
   void _sortTours(List<Map<String, dynamic>> items) {
@@ -184,13 +394,17 @@ class _ToursScreenState extends ConsumerState<ToursScreen> {
                   ),
                   const SizedBox(width: 10),
                   OutlinedButton(
-                    onPressed: showSort,
+                    onPressed: showFilters,
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(46, 46),
                       maximumSize: const Size(46, 46),
                       padding: EdgeInsets.zero,
                     ),
-                    child: const Icon(Icons.tune_rounded, size: 19),
+                    child: Badge(
+                      isLabelVisible: activeFilterCount > 0,
+                      label: Text('$activeFilterCount'),
+                      child: const Icon(Icons.tune_rounded, size: 19),
+                    ),
                   ),
                 ],
               ),
@@ -202,11 +416,24 @@ class _ToursScreenState extends ConsumerState<ToursScreen> {
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.fromLTRB(16, 3, 16, 5),
-                children: const [
-                  _TourFilter('Tất cả', true),
-                  _TourFilter('Trong nước', false),
-                  _TourFilter('Quốc tế', false),
-                  _TourFilter('Phổ biến', false),
+                children: [
+                  _TourFilter(
+                    'Tất cả',
+                    categoryId == null,
+                    onTap: () {
+                      setState(() => categoryId = null);
+                      load();
+                    },
+                  ),
+                  for (final category in categories)
+                    _TourFilter(
+                      '${category['name'] ?? 'Danh mục'}',
+                      categoryId == _categoryId(category),
+                      onTap: () {
+                        setState(() => categoryId = _categoryId(category));
+                        load();
+                      },
+                    ),
                 ],
               ),
             ),
@@ -245,26 +472,81 @@ class _ToursScreenState extends ConsumerState<ToursScreen> {
   );
 }
 
+class _FilterLabel extends StatelessWidget {
+  const _FilterLabel(this.label);
+  final String label;
+
+  @override
+  Widget build(BuildContext context) =>
+      Text(label, style: AppTextStyles.label.copyWith(fontSize: 13));
+}
+
+class _FilterDropdown extends StatelessWidget {
+  const _FilterDropdown({
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String value;
+  final List<(String, String)> options;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _FilterLabel(label),
+      const SizedBox(height: 8),
+      DropdownButtonFormField<String>(
+        initialValue: value,
+        isExpanded: true,
+        items: options
+            .map(
+              (option) =>
+                  DropdownMenuItem(value: option.$1, child: Text(option.$2)),
+            )
+            .toList(),
+        onChanged: (selected) {
+          if (selected != null) onChanged(selected);
+        },
+      ),
+    ],
+  );
+}
+
 class _TourFilter extends StatelessWidget {
-  const _TourFilter(this.label, this.selected);
+  const _TourFilter(this.label, this.selected, {required this.onTap});
   final String label;
   final bool selected;
+  final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(right: 8),
-    padding: const EdgeInsets.symmetric(horizontal: 15),
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(right: 8),
+    child: Material(
       color: selected ? const Color(0xFF163A78) : Colors.white,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(
-        color: selected ? const Color(0xFF163A78) : AppColors.border,
-      ),
-    ),
-    child: Text(
-      label,
-      style: AppTextStyles.caption.copyWith(
-        color: selected ? Colors.white : AppColors.muted,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 15),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: selected ? const Color(0xFF163A78) : AppColors.border,
+            ),
+          ),
+          child: Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: selected ? Colors.white : AppColors.muted,
+            ),
+          ),
+        ),
       ),
     ),
   );
@@ -399,6 +681,9 @@ class _TourCard extends StatelessWidget {
 }
 
 double _tourNumber(dynamic value) => double.tryParse('${value ?? 0}') ?? 0;
+
+int _categoryId(Map item) =>
+    int.tryParse('${item['tour_category_id'] ?? item['id'] ?? 0}') ?? 0;
 
 class _LargeTourCard extends ConsumerStatefulWidget {
   const _LargeTourCard({required this.tour});

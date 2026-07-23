@@ -11,6 +11,7 @@ import '../auth/auth_controller.dart';
 import '../../design/app_colors.dart';
 import '../../design/app_text_styles.dart';
 import '../../design/app_widgets.dart';
+import '../../widgets/network_map_image.dart';
 
 class LocationDetailScreen extends ConsumerStatefulWidget {
   const LocationDetailScreen({super.key, required this.id});
@@ -790,7 +791,7 @@ class _MapTab extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 if (image.isNotEmpty)
-                  CachedNetworkImage(imageUrl: image, fit: BoxFit.cover)
+                  NetworkMapImage(url: image)
                 else
                   Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -1057,7 +1058,7 @@ class _ScenesTab extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${s['title'] ?? s['name'] ?? 'Scene ${e.key + 1}'}',
+                            '${s['title'] ?? s['name'] ?? 'Không gian ${e.key + 1}'}',
                             style: AppTextStyles.label,
                           ),
                           const SizedBox(height: 4),
@@ -1157,6 +1158,6 @@ String? _image(Map item) =>
 
 String _destination(Map item) {
   final dest = item['destination'] ?? item['travel_destination'];
-  if (dest is Map) return '${dest['name'] ?? dest['title'] ?? 'Destination'}';
-  return '${item['destination_name'] ?? 'Destination'}';
+  if (dest is Map) return '${dest['name'] ?? dest['title'] ?? 'Điểm đến'}';
+  return '${item['destination_name'] ?? 'Điểm đến'}';
 }

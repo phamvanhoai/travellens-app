@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,13 +25,15 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   final _phone = TextEditingController();
   final _coupon = TextEditingController();
   Map<String, dynamic>? _tour;
-  DateTime? _date;
+  List<Map<String, dynamic>> _departures = const [];
+  int? _departureId;
   int _adults = 1, _children = 0, _infants = 0;
   bool _loadingTour = true, _submitting = false, _accepted = false;
   bool _validatingCoupon = false;
   Map<String, dynamic>? _appliedCoupon;
   String? _couponError;
   String? _error;
+  String? _requestId;
 
   @override
   void initState() {
@@ -57,13 +61,21 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       _error = null;
     });
     try {
-      final response = await ref
-          .read(dioProvider)
-          .get('/tours/${widget.tourId}');
-      dynamic data = unwrap(response.data);
+      final dio = ref.read(dioProvider);
+      final responses = await Future.wait([
+        dio.get('/tours/${widget.tourId}'),
+        dio.get('/tours/${widget.tourId}/departures'),
+      ]);
+      dynamic data = unwrap(responses[0].data);
       if (data is Map && data['tour'] is Map) data = data['tour'];
+      final departures = unwrapList(responses[1].data, const ['departures']);
       if (!mounted) return;
-      setState(() => _tour = Map<String, dynamic>.from(data as Map));
+      setState(() {
+        _tour = Map<String, dynamic>.from(data as Map);
+        _departures = departures;
+        _departureId = null;
+        _requestId = null;
+      });
     } catch (e) {
       if (mounted) setState(() => _error = apiError(e));
     } finally {
@@ -71,13 +83,37 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     }
   }
 
-  double get _adultPrice => _money(_tour?['price']);
-  double get _childPrice {
-    final value = _money(_tour?['child_price']);
-    return value > 0 ? value : _adultPrice * .65;
+  Map<String, dynamic>? get _selectedDeparture {
+    for (final departure in _departures) {
+      if (_integer(departure['tour_departure_id'] ?? departure['id']) ==
+          _departureId) {
+        return departure;
+      }
+    }
+    return null;
   }
 
-  double get _infantPrice => _money(_tour?['infant_price']);
+  double get _adultPrice =>
+      _money(_selectedDeparture?['price'] ?? _tour?['price']);
+  double get _childPrice {
+    final raw = _selectedDeparture?['child_price'] ?? _tour?['child_price'];
+    return raw == null ? _adultPrice * .65 : _money(raw);
+  }
+
+  double get _infantPrice =>
+      _money(_selectedDeparture?['infant_price'] ?? _tour?['infant_price']);
+  int get _guestCount => _adults + _children + _infants;
+  int get _minimumBooking => max(1, _integer(_tour?['minimum_booking'] ?? 1));
+  int? get _maximumBooking {
+    final configured = _integer(_tour?['maximum_booking']);
+    final slots = _integer(_selectedDeparture?['available_slots']);
+    final limits = [
+      if (configured > 0) configured,
+      if (_selectedDeparture != null) max(0, slots),
+    ];
+    return limits.isEmpty ? null : limits.reduce(min);
+  }
+
   double get _total =>
       _adults * _adultPrice + _children * _childPrice + _infants * _infantPrice;
   double get _discount {
@@ -94,7 +130,14 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
 
   double get _finalTotal => (_total - _discount).clamp(0, _total);
 
-  void _changeGuests(VoidCallback change) {
+  void _changeGuests(VoidCallback change, {required bool adding}) {
+    final maximum = _maximumBooking;
+    if (adding && maximum != null && _guestCount >= maximum) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Chuyến này chỉ còn tối đa $maximum chỗ.')),
+      );
+      return;
+    }
     setState(() {
       change();
       _appliedCoupon = null;
@@ -150,24 +193,68 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     });
   }
 
-  Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final selected = await showDatePicker(
+  Future<void> _pickDeparture() async {
+    if (_departures.isEmpty) return;
+    final selected = await showModalBottomSheet<int>(
       context: context,
-      firstDate: DateTime(now.year, now.month, now.day),
-      lastDate: now.add(const Duration(days: 730)),
-      initialDate: _date ?? now.add(const Duration(days: 1)),
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: ListView.separated(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          itemCount: _departures.length,
+          separatorBuilder: (_, _) => const Divider(),
+          itemBuilder: (_, index) {
+            final departure = _departures[index];
+            final id = _integer(
+              departure['tour_departure_id'] ?? departure['id'],
+            );
+            final slots = _integer(departure['available_slots']);
+            final disabled = slots <= 0;
+            return ListTile(
+              enabled: !disabled,
+              leading: const Icon(Icons.calendar_month_outlined),
+              title: Text(_departureLabel(departure)),
+              subtitle: Text(
+                disabled
+                    ? 'Đã hết chỗ'
+                    : 'Còn $slots chỗ · ${_vnd(_money(departure['price']))}',
+              ),
+              trailing: id == _departureId
+                  ? const Icon(Icons.check_circle, color: AppColors.brand)
+                  : null,
+              onTap: disabled ? null : () => Navigator.pop(context, id),
+            );
+          },
+        ),
+      ),
     );
-    if (selected != null) setState(() => _date = selected);
+    if (selected != null) {
+      setState(() {
+        _departureId = selected;
+        _appliedCoupon = null;
+        _couponError = null;
+        _requestId = null;
+      });
+    }
   }
 
   Future<void> _submit() async {
-    if (!_form.currentState!.validate() || _date == null || !_accepted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng điền đầy đủ thông tin và đồng ý điều khoản.'),
-        ),
-      );
+    if (!_form.currentState!.validate() ||
+        _selectedDeparture == null ||
+        !_accepted ||
+        _guestCount < _minimumBooking ||
+        (_maximumBooking != null && _guestCount > _maximumBooking!)) {
+      final message = _selectedDeparture == null
+          ? 'Vui lòng chọn một lịch khởi hành đang mở.'
+          : _guestCount < _minimumBooking
+          ? 'Tour yêu cầu ít nhất $_minimumBooking hành khách.'
+          : (_maximumBooking != null && _guestCount > _maximumBooking!)
+          ? 'Lịch này chỉ nhận tối đa $_maximumBooking hành khách.'
+          : 'Vui lòng điền đầy đủ thông tin và đồng ý điều khoản.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
       return;
     }
     setState(() => _submitting = true);
@@ -191,18 +278,29 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             '/bookings',
             data: {
               'tour_id': widget.tourId,
+              'tour_departure_id': _departureId,
               'contact_phone': _phone.text.trim(),
-              'travel_date': DateFormat('yyyy-MM-dd').format(_date!),
               if (_appliedCoupon != null) 'coupon_code': _coupon.text.trim(),
+              'request_id': _requestId ??= _uuidV4(),
+              'policy_accepted': true,
               'passengers': passengers,
             },
           );
       final data = unwrap(response.data);
       final id = data is Map ? data['booking_id'] ?? data['id'] : null;
-      if (mounted)
-        context.go(
-          id == null ? '/bookings' : '/payment/checkout?bookingId=$id',
-        );
+      final amount = data is Map
+          ? _money(data['final_amount'] ?? data['total_amount'] ?? _finalTotal)
+          : _finalTotal;
+      final status = data is Map ? '${data['status'] ?? ''}' : '';
+      if (mounted) {
+        if (id == null ||
+            amount <= 0 ||
+            status == 'waiting_manual_confirmation') {
+          context.go('/bookings');
+        } else {
+          context.go('/payment/checkout?bookingId=$id');
+        }
+      }
     } catch (e) {
       if (mounted)
         ScaffoldMessenger.of(
@@ -266,10 +364,10 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                     : '${tour['duration'] ?? 'Trong ngày'}',
               ),
               const SizedBox(height: 20),
-              const _Title('Ngày khởi hành'),
+              const _Title('Lịch khởi hành'),
               const SizedBox(height: 9),
               InkWell(
-                onTap: _pickDate,
+                onTap: _departures.isEmpty ? null : _pickDeparture,
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
                   height: 48,
@@ -278,20 +376,24 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: _date == null ? AppColors.border : AppColors.brand,
+                      color: _selectedDeparture == null
+                          ? AppColors.border
+                          : AppColors.brand,
                     ),
                   ),
                   child: Row(
                     children: [
                       Expanded(
                         child: Text(
-                          _date == null
-                              ? 'Chọn ngày khởi hành'
-                              : DateFormat('dd/MM/yyyy').format(_date!),
+                          _selectedDeparture == null
+                              ? (_departures.isEmpty
+                                    ? 'Tour chưa có lịch mở bán'
+                                    : 'Chọn ngày và giờ khởi hành')
+                              : _departureLabel(_selectedDeparture!),
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: _date == null
+                            color: _selectedDeparture == null
                                 ? AppColors.muted
                                 : AppColors.ink,
                           ),
@@ -306,6 +408,21 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                   ),
                 ),
               ),
+              if (_selectedDeparture != null) ...[
+                const SizedBox(height: 7),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Còn ${_integer(_selectedDeparture!['available_slots'])} chỗ'
+                    '${_selectedDeparture!['booking_close_at'] == null ? '' : ' · Đóng đặt chỗ ${_dateTime(_selectedDeparture!['booking_close_at'])}'}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.brand,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
               const _Title('Số lượng khách'),
               const SizedBox(height: 4),
@@ -315,21 +432,24 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                 price: _adultPrice,
                 value: _adults,
                 min: 1,
-                onChanged: (v) => _changeGuests(() => _adults = v),
+                onChanged: (v) =>
+                    _changeGuests(() => _adults = v, adding: v > _adults),
               ),
               _GuestRow(
                 label: 'Trẻ em',
                 hint: 'Từ 2 – 11 tuổi',
                 price: _childPrice,
                 value: _children,
-                onChanged: (v) => _changeGuests(() => _children = v),
+                onChanged: (v) =>
+                    _changeGuests(() => _children = v, adding: v > _children),
               ),
               _GuestRow(
                 label: 'Em bé',
                 hint: 'Dưới 2 tuổi',
                 price: _infantPrice,
                 value: _infants,
-                onChanged: (v) => _changeGuests(() => _infants = v),
+                onChanged: (v) =>
+                    _changeGuests(() => _infants = v, adding: v > _infants),
               ),
               const SizedBox(height: 18),
               const _Title('Thông tin người đặt'),
@@ -349,8 +469,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                           vertical: 13,
                         ),
                       ),
-                      validator: (v) =>
-                          (v?.trim().length ?? 0) < 2 ? 'Nhập họ tên' : null,
+                      validator: (v) => !_validFullName(v?.trim() ?? '')
+                          ? 'Nhập họ tên gồm ít nhất 2 từ'
+                          : null,
                     ),
                   ),
                   const SizedBox(width: 9),
@@ -828,6 +949,40 @@ int _integer(dynamic value) =>
     int.tryParse('${value ?? 0}') ?? _money(value).round();
 String _vnd(double value) =>
     '${NumberFormat.decimalPattern('vi').format(value)}đ';
+String _departureLabel(Map<String, dynamic> departure) {
+  final raw = '${departure['departure_at'] ?? ''}';
+  final parsed = DateTime.tryParse(raw);
+  if (parsed == null) return 'Lịch khởi hành';
+  return DateFormat('HH:mm · dd/MM/yyyy').format(parsed.toLocal());
+}
+
+String _dateTime(dynamic value) {
+  final parsed = DateTime.tryParse('${value ?? ''}');
+  if (parsed == null) return '';
+  return DateFormat('HH:mm dd/MM/yyyy').format(parsed.toLocal());
+}
+
+bool _validFullName(String value) {
+  final words = value
+      .split(RegExp(r'\s+'))
+      .where((word) => word.isNotEmpty)
+      .toList();
+  return words.length >= 2 && words.every(RegExp(r"^[A-Za-zÀ-ỹĐđ]+$").hasMatch);
+}
+
+String _uuidV4() {
+  final random = Random.secure();
+  final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  final hex = bytes
+      .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+      .join();
+  return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+      '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
+      '${hex.substring(20)}';
+}
+
 String _destination(Map<String, dynamic> tour) {
   final raw = tour['destination'];
   if (raw is Map) return '${raw['name'] ?? raw['title'] ?? ''}';

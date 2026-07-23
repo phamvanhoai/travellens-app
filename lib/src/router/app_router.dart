@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/auth_controller.dart';
+import '../features/ai/ai_assistant_screen.dart';
+import '../features/blogs/blog_detail_screen.dart';
+import '../features/blogs/blogs_screen.dart';
 import '../features/destinations/destinations_screen.dart';
 import '../features/destinations/destination_detail_screen.dart';
 import '../features/view360/view360_screen.dart';
@@ -25,7 +28,6 @@ import '../screens/my_travel_stories_screen.dart';
 import '../screens/travel_map_screen.dart';
 import '../screens/payment_checkout_screen.dart';
 import '../screens/payment_history_screen.dart';
-import '../screens/reference_screens.dart';
 import '../screens/wishlist_screen.dart';
 import '../widgets/app_shell.dart';
 
@@ -113,6 +115,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/travel-feed',
             builder: (_, _) => const TravelFeedScreen(),
           ),
+          GoRoute(path: '/blogs', builder: (_, _) => const BlogsScreen()),
           GoRoute(path: '/account', builder: (_, _) => const AccountScreen()),
         ],
       ),
@@ -126,7 +129,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/locations',
         builder: (_, _) => const EntityListScreen(
           config: EntityConfig(
-            title: 'Locations',
+            title: 'Địa điểm',
             endpoint: '/locations',
             keys: ['locations'],
             detailBase: '/locations',
@@ -146,9 +149,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/blogs/:id',
+        builder: (_, s) =>
+            BlogDetailScreen(identifier: s.pathParameters['id'] ?? ''),
+      ),
+      GoRoute(
         path: '/travel-feed/:id',
         builder: (_, s) => EntityDetailScreen(
-          title: 'Travel post',
+          title: 'Bài viết du lịch',
           endpoint: '/travel-feed/${s.pathParameters['id']}',
         ),
       ),
@@ -162,7 +170,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/reviews',
         builder: (_, _) => const EntityListScreen(
           config: EntityConfig(
-            title: 'Location reviews',
+            title: 'Đánh giá địa điểm',
             endpoint: '/reviews',
             keys: ['reviews'],
             detailBase: '',

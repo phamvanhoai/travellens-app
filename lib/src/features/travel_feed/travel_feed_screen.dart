@@ -201,7 +201,8 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
                   child: AppEmptyState(
                     icon: Icons.dynamic_feed_rounded,
                     title: 'Nothing to see here',
-                    subtitle: 'No travel posts found. Be the first to share!',
+                    subtitle:
+                        'Chưa có bài viết du lịch. Hãy là người đầu tiên chia sẻ!',
                   ),
                 ),
               )
@@ -280,7 +281,8 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
       context.push('/login');
       return;
     }
-    final currentUser = ref.read(authProvider).user ?? const <String, dynamic>{};
+    final currentUser =
+        ref.read(authProvider).user ?? const <String, dynamic>{};
     final currentUserId = _authUserId(currentUser);
     final authorId = _authorId(post);
     final ownPost = currentUserId > 0 && currentUserId == authorId;
@@ -382,9 +384,7 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
     );
     if (!confirmed || !mounted) return;
     try {
-      await ref
-          .read(dioProvider)
-          .post('/travel-feed/users/$authorId/block');
+      await ref.read(dioProvider).post('/travel-feed/users/$authorId/block');
       if (!mounted) return;
       setState(
         () => posts.removeWhere((value) => _authorId(value) == authorId),
@@ -657,7 +657,7 @@ class _LegacyFeedHeader extends StatelessWidget {
                       style: AppTextStyles.h4White.copyWith(letterSpacing: -.3),
                     ),
                     Text(
-                      'Discover moments',
+                      'Khám phá khoảnh khắc',
                       style: AppTextStyles.bodySmallWhite.copyWith(
                         fontSize: 10,
                       ),
@@ -669,9 +669,9 @@ class _LegacyFeedHeader extends StatelessWidget {
                   initialValue: sort,
                   onSelected: onSortChanged,
                   itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'newest', child: Text('Newest')),
+                    PopupMenuItem(value: 'newest', child: Text('Mới nhất')),
                     PopupMenuItem(value: 'oldest', child: Text('Oldest')),
-                    PopupMenuItem(value: 'popular', child: Text('Popular')),
+                    PopupMenuItem(value: 'popular', child: Text('Phổ biến')),
                   ],
                   child: Container(
                     width: 36,
@@ -701,7 +701,7 @@ class _LegacyFeedHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Real stories. Real places. Your next inspiration.',
+                  'Câu chuyện thật, địa điểm thật, cảm hứng cho hành trình tiếp theo.',
                   style: AppTextStyles.bodySmallWhite.copyWith(fontSize: 9.5),
                 ),
               ],
@@ -738,7 +738,7 @@ class _LegacyFeedHeader extends StatelessWidget {
                       onSubmitted: (_) => onSearch(),
                       style: AppTextStyles.body,
                       decoration: InputDecoration(
-                        hintText: 'Search posts, places, experiences…',
+                        hintText: 'Tìm bài viết, địa điểm, trải nghiệm…',
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
@@ -846,7 +846,7 @@ class _StoriesSection extends StatelessWidget {
                 ? Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'No active stories yet.',
+                      'Chưa có tin nào đang hoạt động.',
                       style: AppTextStyles.bodySmall,
                     ),
                   )
@@ -946,7 +946,7 @@ class _PostCard extends StatelessWidget {
         .whereType<Map>()
         .toList();
     final liked = post['is_liked'] == true;
-    final authorName = '${author['name'] ?? 'Traveler'}';
+    final authorName = '${author['name'] ?? 'Khách du lịch'}';
 
     return Material(
       color: Colors.white,
@@ -1083,7 +1083,7 @@ class _PostCard extends StatelessWidget {
                     icon: liked
                         ? Icons.favorite_rounded
                         : Icons.favorite_border_rounded,
-                    label: liked ? 'Liked' : 'Like',
+                    label: liked ? 'Đã thích' : 'Thích',
                     active: liked,
                     activeColor: const Color(0xFFFF4D6D),
                     onTap: onLike,
@@ -1093,7 +1093,7 @@ class _PostCard extends StatelessWidget {
                 Expanded(
                   child: _ActionBtn(
                     icon: Icons.chat_bubble_outline_rounded,
-                    label: 'Comment',
+                    label: 'Bình luận',
                     onTap: onComment,
                   ),
                 ),
@@ -1335,14 +1335,16 @@ class _ComposerState extends ConsumerState<_Composer> {
       dynamic data;
       if (editing) {
         final post = widget.post!;
-        final photos = (post['photos'] is List ? post['photos'] as List : const [])
-            .whereType<Map>();
+        final photos =
+            (post['photos'] is List ? post['photos'] as List : const [])
+                .whereType<Map>();
         data = FormData.fromMap({
           'content': content.text.trim(),
           'destination_id': post['destination_id'] ?? '',
           'location_id': post['location_id'] ?? '',
           'visibility': post['visibility'] ?? 'public',
-          'keep_photo_ids': '[${photos.map(_photoId).where((id) => id > 0).join(',')}]',
+          'keep_photo_ids':
+              '[${photos.map(_photoId).where((id) => id > 0).join(',')}]',
           if (image != null)
             'photos': [
               await MultipartFile.fromFile(image!.path, filename: image!.name),
@@ -1425,7 +1427,7 @@ class _ComposerState extends ConsumerState<_Composer> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      editing ? 'Chỉnh sửa bài viết' : 'Share a moment',
+                      editing ? 'Chỉnh sửa bài viết' : 'Chia sẻ khoảnh khắc',
                       style: AppTextStyles.h3,
                     ),
                     Text(
@@ -1449,7 +1451,7 @@ class _ComposerState extends ConsumerState<_Composer> {
             maxLines: 5,
             minLines: 3,
             decoration: const InputDecoration(
-              hintText: 'Share your travel experience…',
+              hintText: 'Chia sẻ trải nghiệm du lịch của bạn…',
             ),
           ),
           if (image != null)
@@ -1583,7 +1585,7 @@ class _StoryComposerState extends ConsumerState<_StoryComposer> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Create Travel Story', style: AppTextStyles.h3),
+        Text('Tạo tin du lịch', style: AppTextStyles.h3),
         const SizedBox(height: 16),
         GestureDetector(
           onTap: () async {
@@ -1629,7 +1631,7 @@ class _StoryComposerState extends ConsumerState<_StoryComposer> {
           controller: caption,
           maxLength: 1000,
           maxLines: 3,
-          decoration: const InputDecoration(hintText: 'Add a caption…'),
+          decoration: const InputDecoration(hintText: 'Thêm chú thích…'),
         ),
         const SizedBox(height: 12),
         FilledButton(
@@ -1922,7 +1924,7 @@ class _CommentsState extends ConsumerState<_Comments> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete this comment?'),
+        title: const Text('Xóa bình luận này?'),
         content: const Padding(
           padding: EdgeInsets.only(bottom: 8),
           child: Text('This comment will be permanently removed.'),
@@ -1966,7 +1968,7 @@ class _CommentsState extends ConsumerState<_Comments> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
-            child: Text('Comments', style: AppTextStyles.h3),
+            child: Text('Bình luận', style: AppTextStyles.h3),
           ),
           Expanded(
             child: FutureBuilder(
@@ -1978,8 +1980,8 @@ class _CommentsState extends ConsumerState<_Comments> {
                 if (values.isEmpty)
                   return AppEmptyState(
                     icon: Icons.chat_bubble_outline_rounded,
-                    title: 'No comments yet',
-                    subtitle: 'Start the conversation!',
+                    title: 'Chưa có bình luận',
+                    subtitle: 'Hãy bắt đầu cuộc trò chuyện!',
                   );
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(
@@ -2009,7 +2011,7 @@ class _CommentsState extends ConsumerState<_Comments> {
                     child: Text(
                       editingComment != null
                           ? 'Editing your comment'
-                          : 'Replying to ${_commentAuthor(replyingTo!)}',
+                          : 'Đang trả lời ${_commentAuthor(replyingTo!)}',
                       style: AppTextStyles.label.copyWith(
                         color: AppColors.accent,
                         fontSize: 12,
@@ -2037,7 +2039,7 @@ class _CommentsState extends ConsumerState<_Comments> {
                   child: TextField(
                     controller: input,
                     decoration: const InputDecoration(
-                      hintText: 'Write a comment…',
+                      hintText: 'Viết bình luận…',
                     ),
                   ),
                 ),
@@ -2142,7 +2144,7 @@ class _CommentItem extends StatelessWidget {
                     foregroundColor: AppColors.muted,
                   ),
                   child: Text(
-                    'Reply',
+                    'Trả lời',
                     style: AppTextStyles.caption.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
@@ -2268,7 +2270,9 @@ int _authorId(Map post) {
 }
 
 int _photoId(Map photo) =>
-    int.tryParse('${photo['photo_id'] ?? photo['media_id'] ?? photo['id'] ?? 0}') ??
+    int.tryParse(
+      '${photo['photo_id'] ?? photo['media_id'] ?? photo['id'] ?? 0}',
+    ) ??
     0;
 int _commentId(Map c) =>
     int.tryParse('${c['comment_id'] ?? c['id'] ?? 0}') ?? 0;
@@ -2290,7 +2294,7 @@ int _authUserId(Map<String, dynamic>? user) =>
 String _commentAuthor(Map c) {
   final user = c['user'] is Map ? c['user'] as Map : const {};
   final author = c['author'] is Map ? c['author'] as Map : const {};
-  return '${c['user_name'] ?? c['customer_name'] ?? c['author_name'] ?? user['name'] ?? author['name'] ?? 'Traveler'}';
+  return '${c['user_name'] ?? c['customer_name'] ?? c['author_name'] ?? user['name'] ?? author['name'] ?? 'Khách du lịch'}';
 }
 
 String _storyUserId(Map s) {
@@ -2348,7 +2352,7 @@ List<Map<String, dynamic>> _commentTree(List<Map<String, dynamic>> source) {
 }
 
 String _author(Map s) =>
-    '${(s['user'] is Map ? s['user']['name'] : null) ?? (s['author'] is Map ? s['author']['name'] : null) ?? 'Traveler'}';
+    '${(s['user'] is Map ? s['user']['name'] : null) ?? (s['author'] is Map ? s['author']['name'] : null) ?? 'Khách du lịch'}';
 String? _avatar(Map s) =>
     (s['user'] is Map ? s['user']['avatar_url'] : null) ??
     (s['author'] is Map ? s['author']['avatar_url'] : null);

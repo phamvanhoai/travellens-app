@@ -93,11 +93,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   Future<void> _pickBirthday() async {
     final initial = DateTime.tryParse(_birthday.text) ?? DateTime(2000, 1, 1);
+    final today = DateTime.now();
+    final latest = DateTime(today.year - 16, today.month, today.day);
     final value = await showDatePicker(
       context: context,
-      initialDate: initial,
+      initialDate: initial.isAfter(latest) ? latest : initial,
       firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
+      lastDate: latest,
     );
     if (value != null) _birthday.text = DateFormat('yyyy-MM-dd').format(value);
   }
@@ -144,7 +146,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AppColors.surface,
     appBar: AppBar(
-      title: const Text('Edit Profile'),
+      title: const Text('Chỉnh sửa hồ sơ'),
       actions: [
         IconButton(
           tooltip: 'Làm mới',
@@ -207,10 +209,21 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   controller: _name,
                   hint: 'Nguyễn Văn A',
                   icon: Icons.person_outline_rounded,
-                  validator: (value) =>
-                      (value?.trim().split(RegExp(r'\s+')).length ?? 0) < 2
-                      ? 'Vui lòng nhập đầy đủ họ tên.'
-                      : null,
+                  validator: (value) {
+                    final name = value?.trim() ?? '';
+                    final words = name
+                        .split(RegExp(r'\s+'))
+                        .where((word) => word.isNotEmpty)
+                        .toList();
+                    if (name.length > 30) {
+                      return 'Họ tên không được vượt quá 30 ký tự.';
+                    }
+                    if (words.length < 2 ||
+                        !words.every(RegExp(r"^[A-Za-zÀ-ỹĐđ]+$").hasMatch)) {
+                      return 'Họ tên gồm ít nhất 2 từ và chỉ chứa chữ.';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 13),
                 _Label('Email'),

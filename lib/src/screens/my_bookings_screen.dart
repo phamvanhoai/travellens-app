@@ -182,29 +182,51 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
 
   Future<void> _cancel(Map<String, dynamic> booking) async {
     final id = _bookingId(booking);
-    final confirmed = await showDialog<bool>(
+    final reasonController = TextEditingController();
+    final reason = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Hủy booking?'),
-        content: const Text(
-          'Yêu cầu hủy sẽ được xử lý theo chính sách của tour.',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Yêu cầu hủy sẽ được xử lý theo chính sách của tour.'),
+            const SizedBox(height: 14),
+            TextField(
+              controller: reasonController,
+              maxLength: 1000,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Lý do (không bắt buộc)',
+                hintText: 'Kế hoạch của tôi đã thay đổi…',
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Đóng'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
+            onPressed: () =>
+                Navigator.pop(dialogContext, reasonController.text.trim()),
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('Hủy booking'),
           ),
         ],
       ),
     );
-    if (confirmed != true) return;
+    reasonController.dispose();
+    if (reason == null) return;
     try {
-      await ref.read(dioProvider).patch('/bookings/$id/cancel');
+      await ref
+          .read(dioProvider)
+          .patch(
+            '/bookings/$id/cancel',
+            data: {'reason': reason.isEmpty ? null : reason},
+          );
       await _load();
     } catch (e) {
       if (mounted) {
@@ -858,6 +880,8 @@ class _StatusChip extends StatelessWidget {
         ? 'Đã hoàn thành'
         : status == 'confirmed'
         ? 'Đã xác nhận'
+        : status == 'waiting_manual_confirmation'
+        ? 'Chờ xác nhận'
         : status == 'paid'
         ? 'Đã thanh toán'
         : cancelled
@@ -943,6 +967,7 @@ bool _canPay(Map item) {
   if (_bookingAmount(item) <= 0) return false;
   final status = _bookingStatus(item);
   if (const {
+    'waiting_manual_confirmation',
     'cancel_pending',
     'cancelled',
     'canceled',
@@ -969,7 +994,8 @@ bool _canCancel(Map item) {
   }
   final departure = _departureDate(item);
   if (departure == null) return true;
-  return departure.difference(DateTime.now()).inHours > 24;
+  final deadline = departure.subtract(const Duration(hours: 24));
+  return !DateTime.now().isAfter(deadline);
 }
 
 bool _canReview(Map item) {

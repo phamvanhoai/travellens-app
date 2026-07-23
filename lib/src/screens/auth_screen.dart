@@ -65,26 +65,25 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   Future<void> submit() async {
     final emailValue = email.text.trim();
     if (widget.register && name.text.trim().length < 2) {
-      setState(() => validationError = 'Enter your full name.');
+      setState(() => validationError = 'Vui lòng nhập họ và tên.');
       return;
     }
     if (!RegExp(r'^[^\@\s]+@[^\@\s]+\.[^\@\s]+$').hasMatch(emailValue)) {
-      setState(() => validationError = 'Enter a valid email address.');
+      setState(() => validationError = 'Vui lòng nhập địa chỉ email hợp lệ.');
       return;
     }
     if (password.text.length < 6) {
-      setState(
-        () => validationError = 'Password must contain at least 6 characters.',
-      );
+      setState(() => validationError = 'Mật khẩu phải có ít nhất 6 ký tự.');
       return;
     }
     if (widget.register && password.text != confirmPassword.text) {
-      setState(() => validationError = 'Passwords do not match.');
+      setState(() => validationError = 'Mật khẩu xác nhận không khớp.');
       return;
     }
     if (widget.register && !agreed) {
       setState(
-        () => validationError = 'Please accept the terms and privacy policy.',
+        () => validationError =
+            'Vui lòng đồng ý với điều khoản và chính sách bảo mật.',
       );
       return;
     }
@@ -101,7 +100,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           verifying = true;
           validationError = null;
           registrationMessage =
-              'This email has not been verified. Enter the OTP sent when you registered.';
+              'Email chưa được xác minh. Hãy nhập mã OTP đã được gửi khi đăng ký.';
         });
       }
       return;
@@ -110,7 +109,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       setState(() {
         verifying = true;
         registrationMessage =
-            'Registration successful. Check your email for the OTP.';
+            'Đăng ký thành công. Hãy kiểm tra email để nhận mã OTP.';
       });
       _startResendCooldown();
     } else {
@@ -121,7 +120,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   Future<void> verifyOtp() async {
     final code = otp.text.trim();
     if (!RegExp(r'^\d{6}$').hasMatch(code)) {
-      setState(() => validationError = 'Enter the 6-digit verification code.');
+      setState(() => validationError = 'Vui lòng nhập mã xác minh gồm 6 số.');
       return;
     }
     setState(() => validationError = null);
@@ -130,7 +129,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         .verifyEmail(email.text.trim(), code);
     if (!mounted || !ok) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Email verified. You can now sign in.')),
+      const SnackBar(
+        content: Text('Xác minh email thành công. Bạn có thể đăng nhập.'),
+      ),
     );
     context.go('/login');
   }
@@ -158,7 +159,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     otp.clear();
     setState(() {
       validationError = null;
-      registrationMessage = 'A new OTP has been sent to your email.';
+      registrationMessage = 'Mã OTP mới đã được gửi đến email của bạn.';
     });
     _startResendCooldown();
   }
@@ -284,15 +285,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                           const SizedBox(height: 16),
                           Text(
                             widget.register
-                                ? 'Create your account'
-                                : 'Welcome back',
+                                ? 'Tạo tài khoản'
+                                : 'Chào mừng trở lại',
                             style: AppTextStyles.h1.copyWith(fontSize: 27),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             widget.register
-                                ? 'Create an account to save places and plan unforgettable trips.'
-                                : 'Sign in to continue exploring the world with TravelLens.',
+                                ? 'Tạo tài khoản để lưu địa điểm và lên kế hoạch cho những hành trình đáng nhớ.'
+                                : 'Đăng nhập để tiếp tục khám phá thế giới cùng TravelLens.',
                             style: AppTextStyles.bodySmall,
                           ),
                           const SizedBox(height: 20),
@@ -316,16 +317,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 if (widget.register) ...[
-                                  _FieldLabel('Full name'),
+                                  _FieldLabel('Họ và tên'),
                                   const SizedBox(height: 6),
                                   _AuthField(
                                     controller: name,
-                                    hintText: 'Enter your full name',
+                                    hintText: 'Nhập họ và tên',
                                     icon: Icons.person_outline_rounded,
                                   ),
                                   const SizedBox(height: 13),
                                 ],
-                                _FieldLabel('Email address'),
+                                _FieldLabel('Địa chỉ email'),
                                 const SizedBox(height: 6),
                                 _AuthField(
                                   controller: email,
@@ -336,14 +337,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                 const SizedBox(height: 13),
                                 Row(
                                   children: [
-                                    const _FieldLabel('Password'),
+                                    const _FieldLabel('Mật khẩu'),
                                     if (!widget.register) ...[
                                       const Spacer(),
                                       GestureDetector(
                                         onTap: () =>
                                             context.push('/forgot-password'),
                                         child: const Text(
-                                          'Forgot password?',
+                                          'Quên mật khẩu?',
                                           style: TextStyle(
                                             color: AppColors.brand,
                                             fontSize: 10.5,
@@ -357,7 +358,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                 const SizedBox(height: 6),
                                 _AuthField(
                                   controller: password,
-                                  hintText: 'At least 6 characters',
+                                  hintText: 'Ít nhất 6 ký tự',
                                   icon: Icons.lock_outline_rounded,
                                   obscureText: obscure,
                                   onSubmitted: widget.register ? null : submit,
@@ -366,11 +367,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                 ),
                                 if (widget.register) ...[
                                   const SizedBox(height: 13),
-                                  _FieldLabel('Confirm password'),
+                                  _FieldLabel('Xác nhận mật khẩu'),
                                   const SizedBox(height: 6),
                                   _AuthField(
                                     controller: confirmPassword,
-                                    hintText: 'Enter password again',
+                                    hintText: 'Nhập lại mật khẩu',
                                     icon: Icons.lock_outline_rounded,
                                     obscureText: obscureConfirm,
                                     onSubmitted: submit,
@@ -402,7 +403,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                         const SizedBox(width: 4),
                                         const Expanded(
                                           child: Text(
-                                            'I agree to the Terms & Conditions and Privacy Policy',
+                                            'Tôi đồng ý với Điều khoản sử dụng và Chính sách bảo mật',
                                             style: TextStyle(
                                               fontSize: 10.5,
                                               color: AppColors.muted,
@@ -463,8 +464,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                           )
                                         : Text(
                                             widget.register
-                                                ? 'Create account'
-                                                : 'Sign in',
+                                                ? 'Tạo tài khoản'
+                                                : 'Đăng nhập',
                                           ),
                                   ),
                                 ),
@@ -484,13 +485,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                 children: [
                                   TextSpan(
                                     text: widget.register
-                                        ? 'Already have an account? '
-                                        : 'New to TravelLens? ',
+                                        ? 'Bạn đã có tài khoản? '
+                                        : 'Bạn mới sử dụng TravelLens? ',
                                   ),
                                   TextSpan(
                                     text: widget.register
-                                        ? 'Sign in'
-                                        : 'Create account',
+                                        ? 'Đăng nhập'
+                                        : 'Tạo tài khoản',
                                     style: GoogleFonts.outfit(
                                       color: AppColors.brand,
                                       fontWeight: FontWeight.w700,
@@ -570,12 +571,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Verify your email',
+                    'Xác minh email',
                     style: AppTextStyles.h1.copyWith(fontSize: 27),
                   ),
                   const SizedBox(height: 7),
                   Text(
-                    'Enter the 6-digit OTP sent to ${email.text.trim()}',
+                    'Nhập mã OTP gồm 6 số đã gửi đến ${email.text.trim()}',
                     style: AppTextStyles.bodySmall,
                   ),
                   const SizedBox(height: 20),
@@ -607,7 +608,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                           ),
                           const SizedBox(height: 13),
                         ],
-                        const _FieldLabel('Verification code (OTP)'),
+                        const _FieldLabel('Mã xác minh (OTP)'),
                         const SizedBox(height: 6),
                         SizedBox(
                           height: 48,
@@ -661,7 +662,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                       color: Colors.white,
                                     ),
                                   )
-                                : const Text('Verify email'),
+                                : const Text('Xác minh email'),
                           ),
                         ),
                         const SizedBox(height: 7),
@@ -671,8 +672,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                               : resendOtp,
                           child: Text(
                             resendSeconds > 0
-                                ? 'Resend code in ${resendSeconds}s'
-                                : 'Resend verification code',
+                                ? 'Gửi lại mã sau ${resendSeconds}s'
+                                : 'Gửi lại mã xác minh',
                             style: const TextStyle(fontSize: 11.5),
                           ),
                         ),
