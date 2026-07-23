@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_config.dart';
 import '../../core/network/api_client.dart';
@@ -250,15 +251,92 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
   );
 
   Future<void> share(Map<String, dynamic> post) async {
+    if (!ref.read(authProvider).authenticated) {
+      context.push('/login');
+      return;
+    }
     final id = _postId(post);
-    await ref
-        .read(dioProvider)
-        .post('/travel-feed/$id/share', data: {'platform': 'other'})
-        .catchError((_) => Response(requestOptions: RequestOptions()));
-    if (mounted)
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Post share recorded.')));
+    if (id <= 0) return;
+    final platform = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(
+              title: Text(
+                'Chia sẻ bài viết',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: Text('Chọn cách bạn muốn chia sẻ bài viết này.'),
+            ),
+            _ShareOption(
+              icon: Icons.facebook_rounded,
+              label: 'Facebook',
+              onTap: () => Navigator.pop(sheetContext, 'facebook'),
+            ),
+            _ShareOption(
+              icon: Icons.chat_bubble_outline_rounded,
+              label: 'Zalo',
+              onTap: () => Navigator.pop(sheetContext, 'zalo'),
+            ),
+            _ShareOption(
+              icon: Icons.link_rounded,
+              label: 'Sao chép liên kết',
+              onTap: () => Navigator.pop(sheetContext, 'copy_link'),
+            ),
+            _ShareOption(
+              icon: Icons.ios_share_rounded,
+              label: 'Chia sẻ khác',
+              onTap: () => Navigator.pop(sheetContext, 'other'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (platform == null || !mounted) return;
+    try {
+      final response = await ref
+          .read(dioProvider)
+          .post('/travel-feed/$id/share', data: {'platform': platform});
+      final url = _shareUrl(response.data, id);
+      var completed = false;
+      if (platform == 'copy_link' || platform == 'other') {
+        await Clipboard.setData(ClipboardData(text: url));
+        completed = true;
+      } else {
+        completed = await launchUrl(
+          Uri.parse(url),
+          mode: LaunchMode.externalApplication,
+        );
+        if (!completed) {
+          await Clipboard.setData(ClipboardData(text: url));
+          completed = true;
+        }
+      }
+      if (!mounted || !completed) return;
+      setState(() {
+        post['share_count'] =
+            _count(post['share_count'] ?? post['shares_count']) + 1;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            platform == 'copy_link' || platform == 'other'
+                ? 'Đã sao chép liên kết bài viết.'
+                : 'Đã mở ứng dụng chia sẻ.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiError(error))));
+      }
+    }
   }
 
   Future<void> openComposer() async {
@@ -310,7 +388,27 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
                 ),
                 onTap: () => Navigator.pop(sheetContext, 'delete'),
               ),
-            ] else
+            ] else ...[
+              ListTile(
+                leading: Icon(
+                  Icons.flag_outlined,
+                  color: _isReported(post) ? AppColors.success : AppColors.gold,
+                ),
+                title: Text(
+                  _isReported(post) ? 'Đã báo cáo' : 'Báo cáo bài viết',
+                  style: TextStyle(
+                    color: _isReported(post)
+                        ? AppColors.success
+                        : AppColors.dark,
+                  ),
+                ),
+                subtitle: Text(
+                  _isReported(post)
+                      ? 'Chỉnh sửa báo cáo đang chờ xử lý'
+                      : 'Thông báo nội dung vi phạm',
+                ),
+                onTap: () => Navigator.pop(sheetContext, 'report'),
+              ),
               ListTile(
                 leading: const Icon(
                   Icons.block_rounded,
@@ -325,6 +423,7 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
                     ? () => Navigator.pop(sheetContext, 'block')
                     : null,
               ),
+            ],
             const SizedBox(height: 6),
           ],
         ),
@@ -344,6 +443,66 @@ class _TravelFeedScreenState extends ConsumerState<TravelFeedScreen> {
       await _deletePost(post);
     } else if (action == 'block') {
       await _blockAuthor(post);
+    } else if (action == 'report') {
+      await _reportPost(post);
+    }
+  }
+
+  Future<void> _reportPost(Map<String, dynamic> post) async {
+    final id = _postId(post);
+    if (id <= 0) return;
+    final initial = _reportData(post);
+    final result = await showModalBottomSheet<_ReportResult>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ReportPostSheet(initial: initial),
+    );
+    if (result == null || !mounted) return;
+    try {
+      final data = {
+        'reason': result.reason,
+        if (result.description.isNotEmpty) 'description': result.description,
+      };
+      if (_isReported(post)) {
+        await ref
+            .read(dioProvider)
+            .patch('/travel-feed/$id/report', data: data);
+      } else {
+        try {
+          await ref
+              .read(dioProvider)
+              .post('/travel-feed/$id/reports', data: data);
+        } on DioException catch (error) {
+          if (error.response?.statusCode != 409) rethrow;
+          await ref
+              .read(dioProvider)
+              .patch('/travel-feed/$id/report', data: data);
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        post['is_reported'] = true;
+        post['reported_by_me'] = true;
+        post['report_status'] = 'pending';
+        post['my_report'] = data;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            initial == null
+                ? 'Đã gửi báo cáo. Cảm ơn bạn đã bảo vệ cộng đồng.'
+                : 'Đã cập nhật báo cáo.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiError(error))));
+      }
     }
   }
 
@@ -927,6 +1086,167 @@ class _StoriesSection extends StatelessWidget {
 
 // ─── Post Card ────────────────────────────────────────────────────────────────
 
+class _ShareOption extends StatelessWidget {
+  const _ShareOption({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    leading: Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: AppColors.accentLight,
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Icon(icon, size: 20, color: AppColors.brand),
+    ),
+    title: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+    trailing: const Icon(Icons.chevron_right_rounded, size: 19),
+    onTap: onTap,
+  );
+}
+
+class _ReportResult {
+  const _ReportResult({required this.reason, required this.description});
+  final String reason;
+  final String description;
+}
+
+class _ReportPostSheet extends StatefulWidget {
+  const _ReportPostSheet({this.initial});
+  final Map<String, dynamic>? initial;
+
+  @override
+  State<_ReportPostSheet> createState() => _ReportPostSheetState();
+}
+
+class _ReportPostSheetState extends State<_ReportPostSheet> {
+  static const reasons = [
+    ('spam', 'Spam'),
+    ('inappropriate_content', 'Nội dung không phù hợp'),
+    ('harassment', 'Quấy rối'),
+    ('false_information', 'Thông tin sai lệch'),
+    ('scam', 'Lừa đảo'),
+    ('other', 'Lý do khác'),
+  ];
+
+  late String reason = '${widget.initial?['reason'] ?? 'spam'}';
+  late final TextEditingController description = TextEditingController(
+    text: '${widget.initial?['description'] ?? ''}',
+  );
+
+  @override
+  void dispose() {
+    description.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.white,
+    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+    child: SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(
+        18,
+        10,
+        18,
+        MediaQuery.viewInsetsOf(context).bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  widget.initial == null
+                      ? 'Báo cáo bài viết'
+                      : 'Chỉnh sửa báo cáo',
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Đóng',
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ],
+          ),
+          const Text(
+            'Hãy cho chúng tôi biết nội dung này vi phạm điều gì.',
+            style: TextStyle(fontSize: 10.5, color: AppColors.muted),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            initialValue: reason,
+            decoration: const InputDecoration(labelText: 'Lý do báo cáo'),
+            items: reasons
+                .map(
+                  (item) =>
+                      DropdownMenuItem(value: item.$1, child: Text(item.$2)),
+                )
+                .toList(),
+            onChanged: (value) => setState(() => reason = value ?? 'spam'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: description,
+            minLines: 3,
+            maxLines: 5,
+            maxLength: 1000,
+            decoration: const InputDecoration(
+              labelText: 'Mô tả thêm',
+              hintText: 'Cung cấp thêm thông tin giúp chúng tôi xem xét...',
+              alignLabelWithHint: true,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: FilledButton.icon(
+              onPressed: () => Navigator.pop(
+                context,
+                _ReportResult(
+                  reason: reason,
+                  description: description.text.trim(),
+                ),
+              ),
+              icon: const Icon(Icons.flag_outlined, size: 18),
+              label: Text(
+                widget.initial == null ? 'Gửi báo cáo' : 'Cập nhật báo cáo',
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _PostCard extends StatelessWidget {
   const _PostCard({
     required this.post,
@@ -1066,7 +1386,7 @@ class _PostCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  '${post['comment_count'] ?? 0} comments · ${post['share_count'] ?? 0} shares',
+                  '${post['comment_count'] ?? 0} bình luận · ${post['share_count'] ?? post['shares_count'] ?? 0} lượt chia sẻ',
                   style: AppTextStyles.caption.copyWith(fontSize: 9),
                 ),
               ],
@@ -1101,7 +1421,7 @@ class _PostCard extends StatelessWidget {
                 Expanded(
                   child: _ActionBtn(
                     icon: Icons.share_outlined,
-                    label: 'Share',
+                    label: 'Chia sẻ',
                     onTap: onShare,
                   ),
                 ),
@@ -2260,6 +2580,37 @@ class _FeedSkeleton extends StatelessWidget {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 int _postId(Map p) => int.tryParse('${p['post_id'] ?? p['id'] ?? 0}') ?? 0;
+int _count(dynamic value) => int.tryParse('${value ?? 0}') ?? 0;
+
+String _shareUrl(dynamic body, int postId) {
+  dynamic value = body;
+  if (value is Map && value['data'] != null) value = value['data'];
+  if (value is Map && value['share'] != null) value = value['share'];
+  if (value is Map) {
+    final url = value['share_url'] ?? value['shareUrl'] ?? value['url'];
+    if (url != null && '$url'.isNotEmpty) return '$url';
+  }
+  return '${AppConfig.apiBaseUrl}/travel-feed/$postId/share-preview';
+}
+
+bool _isReported(Map post) =>
+    post['is_reported'] == true ||
+    post['reported'] == true ||
+    post['has_reported'] == true ||
+    post['reported_by_me'] == true ||
+    post['my_report'] is Map ||
+    post['report'] is Map;
+
+Map<String, dynamic>? _reportData(Map post) {
+  final raw = post['my_report'] ?? post['report'];
+  if (raw is Map) return Map<String, dynamic>.from(raw);
+  if (!_isReported(post)) return null;
+  return {
+    'reason': '${post['report_reason'] ?? 'other'}',
+    'description': '${post['report_description'] ?? ''}',
+  };
+}
+
 int _authorId(Map post) {
   final author = post['author'] is Map ? post['author'] as Map : const {};
   final user = post['user'] is Map ? post['user'] as Map : const {};
