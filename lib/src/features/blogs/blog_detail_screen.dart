@@ -114,6 +114,142 @@ class _BlogDetailScreenState extends ConsumerState<BlogDetailScreen> {
     }
   }
 
+  Future<void> openCommentEditor(
+    Map<String, dynamic> comment, {
+    required bool replying,
+  }) async {
+    if (!ref.read(authProvider).authenticated) {
+      context.push(
+        '/login?from=${Uri.encodeComponent('/blogs/${widget.identifier}')}',
+      );
+      return;
+    }
+    final commentId = _commentId(comment);
+    if (commentId <= 0) return;
+    final controller = TextEditingController(
+      text: replying ? '' : _commentContent(comment),
+    );
+    final content = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          18,
+          0,
+          18,
+          18 + MediaQuery.viewInsetsOf(sheetContext).bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              replying ? 'Trả lời bình luận' : 'Chỉnh sửa bình luận',
+              style: AppTextStyles.h4,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              minLines: 3,
+              maxLines: 7,
+              maxLength: 2000,
+              decoration: InputDecoration(
+                hintText: replying
+                    ? 'Nhập nội dung trả lời...'
+                    : 'Chỉnh sửa nội dung...',
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(sheetContext),
+                    child: const Text('Hủy'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () {
+                      final value = controller.text.trim();
+                      if (value.isNotEmpty) Navigator.pop(sheetContext, value);
+                    },
+                    child: Text(replying ? 'Gửi trả lời' : 'Lưu thay đổi'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (content == null || !mounted) return;
+    final blogId = _integer(blog?['blog_id'] ?? blog?['id']);
+    try {
+      if (replying) {
+        await ref
+            .read(dioProvider)
+            .post(
+              '/blogs/$blogId/comments/$commentId/replies',
+              data: {'content': content, 'comment': content},
+            );
+      } else {
+        await ref
+            .read(dioProvider)
+            .put(
+              '/blogs/$blogId/comments/$commentId',
+              data: {'content': content, 'comment': content},
+            );
+      }
+      await loadComments();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiError(e))));
+      }
+    }
+  }
+
+  Future<void> deleteComment(Map<String, dynamic> comment) async {
+    final commentId = _commentId(comment);
+    if (commentId <= 0) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xóa bình luận?'),
+        content: const Text('Bình luận này sẽ bị xóa và không thể khôi phục.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final blogId = _integer(blog?['blog_id'] ?? blog?['id']);
+    try {
+      await ref.read(dioProvider).delete('/blogs/$blogId/comments/$commentId');
+      await loadComments();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(apiError(e))));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (loading) {
@@ -129,6 +265,10 @@ class _BlogDetailScreenState extends ConsumerState<BlogDetailScreen> {
       );
     }
     final item = blog!;
+    final currentUser = ref.watch(authProvider).user ?? const {};
+    final currentUserId = _integer(
+      currentUser['user_id'] ?? currentUser['id'] ?? currentUser['sub'],
+    );
     final image = AppConfig.assetUrl(
       '${item['thumbnail_url'] ?? item['thumbnail'] ?? ''}',
     );
@@ -376,7 +516,15 @@ class _BlogDetailScreenState extends ConsumerState<BlogDetailScreen> {
                   for (final comment in comments)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: _CommentCard(comment: comment),
+                      child: _CommentCard(
+                        comment: comment,
+                        currentUserId: currentUserId,
+                        onReply: (item) =>
+                            openCommentEditor(item, replying: true),
+                        onEdit: (item) =>
+                            openCommentEditor(item, replying: false),
+                        onDelete: deleteComment,
+                      ),
                     ),
               ],
             ),
@@ -474,8 +622,19 @@ class _BlogCircleButton extends StatelessWidget {
 }
 
 class _CommentCard extends StatelessWidget {
-  const _CommentCard({required this.comment, this.reply = false});
+  const _CommentCard({
+    required this.comment,
+    required this.currentUserId,
+    required this.onReply,
+    required this.onEdit,
+    required this.onDelete,
+    this.reply = false,
+  });
   final Map<String, dynamic> comment;
+  final int currentUserId;
+  final ValueChanged<Map<String, dynamic>> onReply;
+  final ValueChanged<Map<String, dynamic>> onEdit;
+  final ValueChanged<Map<String, dynamic>> onDelete;
   final bool reply;
 
   @override
@@ -484,6 +643,7 @@ class _CommentCard extends StatelessWidget {
     final name =
         '${comment['user_name'] ?? comment['customer_name'] ?? user['name'] ?? user['email'] ?? 'Khách du lịch'}';
     final content = '${comment['content'] ?? comment['comment'] ?? ''}';
+    final owner = currentUserId > 0 && _commentUserId(comment) == currentUserId;
     final replies = [
       ..._records(comment['replies']),
       ..._records(comment['Replies']),
@@ -529,6 +689,50 @@ class _CommentCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (!reply)
+                  IconButton(
+                    tooltip: 'Trả lời',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => onReply(comment),
+                    icon: const Icon(
+                      Icons.reply_rounded,
+                      size: 18,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                if (owner)
+                  PopupMenuButton<String>(
+                    tooltip: 'Tùy chọn',
+                    onSelected: (action) {
+                      if (action == 'edit') onEdit(comment);
+                      if (action == 'delete') onDelete(comment);
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.edit_outlined, size: 19),
+                          title: Text('Chỉnh sửa'),
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(
+                            Icons.delete_outline_rounded,
+                            size: 19,
+                            color: AppColors.error,
+                          ),
+                          title: Text(
+                            'Xóa',
+                            style: TextStyle(color: AppColors.error),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
             if (content.isNotEmpty) ...[
@@ -549,7 +753,14 @@ class _CommentCard extends StatelessWidget {
               for (final item in replies)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 9),
-                  child: _CommentCard(comment: item, reply: true),
+                  child: _CommentCard(
+                    comment: item,
+                    currentUserId: currentUserId,
+                    onReply: onReply,
+                    onEdit: onEdit,
+                    onDelete: onDelete,
+                    reply: true,
+                  ),
                 ),
             ],
           ],
@@ -636,3 +847,23 @@ String _date(dynamic value) {
 }
 
 int _integer(dynamic value) => int.tryParse('$value') ?? 0;
+
+int _commentId(Map comment) => _integer(
+  comment['comment_id'] ??
+      comment['blog_comment_id'] ??
+      comment['commentId'] ??
+      comment['blogCommentId'] ??
+      comment['id'],
+);
+
+int _commentUserId(Map comment) {
+  final user = comment['user'] is Map
+      ? comment['user'] as Map
+      : comment['User'] is Map
+      ? comment['User'] as Map
+      : const {};
+  return _integer(comment['user_id'] ?? user['user_id'] ?? user['id']);
+}
+
+String _commentContent(Map comment) =>
+    '${comment['content'] ?? comment['comment'] ?? ''}';
