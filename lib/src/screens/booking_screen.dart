@@ -10,6 +10,7 @@ import '../config/app_config.dart';
 import '../core/network/api_client.dart';
 import '../design/app_colors.dart';
 import '../widgets/booking_progress.dart';
+import '../widgets/app_back_button.dart';
 import '../design/app_widgets.dart';
 
 class BookingScreen extends ConsumerStatefulWidget {
@@ -315,13 +316,20 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loadingTour)
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: Colors.white,
+        appBar: AppBar(
+          leading: AppBackButton(fallbackRoute: '/tours/${widget.tourId}'),
+          title: const Text('Đặt tour'),
+        ),
         body: Center(child: CircularProgressIndicator()),
       );
     if (_error != null || _tour == null)
       return Scaffold(
-        appBar: AppBar(),
+        appBar: AppBar(
+          leading: AppBackButton(fallbackRoute: '/tours/${widget.tourId}'),
+          title: const Text('Đặt tour'),
+        ),
         body: AppErrorState(
           error: _error ?? 'Không tìm thấy tour.',
           onRetry: _loadTour,
@@ -340,12 +348,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        leading: IconButton(
-          onPressed: () => context.canPop()
-              ? context.pop()
-              : context.go('/tours/${widget.tourId}'),
-          icon: const Icon(Icons.arrow_back_rounded, size: 20),
-        ),
+        leading: AppBackButton(fallbackRoute: '/tours/${widget.tourId}'),
         title: const Text('Đặt tour'),
       ),
       body: Form(

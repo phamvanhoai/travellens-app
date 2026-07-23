@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../core/network/api_client.dart';
 import '../design/app_colors.dart';
 import '../design/app_widgets.dart';
+import '../widgets/app_back_button.dart';
 
 class PaymentHistoryScreen extends ConsumerStatefulWidget {
   const PaymentHistoryScreen({super.key});
@@ -107,6 +108,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
+        leading: const AppBackButton(fallbackRoute: '/account'),
         title: const Text('Lịch sử thanh toán'),
         actions: [
           IconButton(

@@ -12,6 +12,7 @@ import '../config/app_config.dart';
 import '../core/network/api_client.dart';
 import '../design/app_colors.dart';
 import '../design/app_widgets.dart';
+import '../widgets/app_back_button.dart';
 
 class MyBookingsScreen extends ConsumerStatefulWidget {
   const MyBookingsScreen({super.key});
@@ -306,6 +307,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.white,
     appBar: AppBar(
+      leading: const AppBackButton(fallbackRoute: '/account'),
       title: const Text('Booking của tôi'),
       actions: [
         IconButton(

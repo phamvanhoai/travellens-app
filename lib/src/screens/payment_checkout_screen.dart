@@ -11,6 +11,7 @@ import '../config/app_config.dart';
 import '../core/network/api_client.dart';
 import '../design/app_colors.dart';
 import '../widgets/booking_progress.dart';
+import '../widgets/app_back_button.dart';
 import '../design/app_widgets.dart';
 
 class PaymentCheckoutScreen extends ConsumerStatefulWidget {
@@ -164,14 +165,21 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: Colors.white,
+        appBar: AppBar(
+          leading: const AppBackButton(fallbackRoute: '/bookings'),
+          title: const Text('Thanh toán'),
+        ),
         body: Center(child: CircularProgressIndicator()),
       );
     }
     if (_error != null || _payment == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Thanh toán')),
+        appBar: AppBar(
+          leading: const AppBackButton(fallbackRoute: '/bookings'),
+          title: const Text('Thanh toán'),
+        ),
         body: AppErrorState(
           error: _error ?? 'Không thể tạo thanh toán.',
           onRetry: _createPayment,
@@ -193,7 +201,10 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('Thanh toán')),
+      appBar: AppBar(
+        leading: const AppBackButton(fallbackRoute: '/bookings'),
+        title: const Text('Thanh toán'),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(18, 10, 18, 28),
         child: Column(
