@@ -1,4 +1,4 @@
-package com.travellens.travellens_app
+package com.hovait.travellens
 
 import io.flutter.embedding.android.FlutterActivity
 

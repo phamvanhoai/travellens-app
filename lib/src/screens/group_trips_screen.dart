@@ -19,12 +19,13 @@ class GroupTripsScreen extends ConsumerStatefulWidget {
 }
 
 class _GroupTripsScreenState extends ConsumerState<GroupTripsScreen> {
-  static const _pageSize = 8;
+  static const _pageSize = 12;
   final _search = TextEditingController();
   List<Map<String, dynamic>> _items = [];
   int _page = 1;
   int _totalPages = 1;
   int _total = 0;
+  bool _publicView = true;
   bool _loading = true;
   String? _error;
 
@@ -49,7 +50,7 @@ class _GroupTripsScreenState extends ConsumerState<GroupTripsScreen> {
       final response = await ref
           .read(dioProvider)
           .get(
-            '/group-trips',
+            _publicView ? '/group-trips/public' : '/group-trips',
             queryParameters: {
               'page': _page,
               'limit': _pageSize,
@@ -75,6 +76,16 @@ class _GroupTripsScreenState extends ConsumerState<GroupTripsScreen> {
     _load();
   }
 
+  void _changeView(bool publicView) {
+    if (_publicView == publicView) return;
+    setState(() {
+      _publicView = publicView;
+      _page = 1;
+      _items = [];
+    });
+    _load();
+  }
+
   void _changePage(int page) {
     if (page < 1 || page > _totalPages || page == _page) return;
     setState(() => _page = page);
@@ -90,6 +101,7 @@ class _GroupTripsScreenState extends ConsumerState<GroupTripsScreen> {
       builder: (_) => const _CreateGroupTripSheet(),
     );
     if (created == true) {
+      _publicView = false;
       _page = 1;
       await _load();
     }
@@ -121,70 +133,79 @@ class _GroupTripsScreenState extends ConsumerState<GroupTripsScreen> {
         slivers: [
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
+              padding: EdgeInsets.zero,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Group Trips',
-                              style: TextStyle(
-                                fontSize: 19,
-                                fontWeight: FontWeight.w800,
+                  _PublicTripsHero(
+                    search: _search,
+                    onChanged: () => setState(() {}),
+                    onSearch: _submitSearch,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+                    child: _GroupTripViewSwitch(
+                      publicView: _publicView,
+                      onChanged: _changeView,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 22, 18, 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(
+                                    Icons.auto_awesome_rounded,
+                                    size: 14,
+                                    color: AppColors.brand,
+                                  ),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'HÀNH TRÌNH CỘNG ĐỒNG',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.1,
+                                      color: AppColors.brand,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            SizedBox(height: 3),
-                            Text(
-                              'Lên kế hoạch và khám phá cùng bạn bè.',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: AppColors.muted,
+                              SizedBox(height: 6),
+                              Text(
+                                _publicView
+                                    ? 'Public Group Trips'
+                                    : 'Chuyến đi của tôi',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        height: 36,
-                        child: FilledButton.icon(
-                          onPressed: _openCreate,
-                          icon: const Icon(Icons.add_rounded, size: 16),
-                          label: const Text(
-                            'Tạo chuyến đi',
-                            style: TextStyle(fontSize: 10.5),
+                              const SizedBox(height: 3),
+                              Text(
+                                _publicView
+                                    ? 'Khám phá các chuyến đi mở cùng cộng đồng Travel360.'
+                                    : 'Quản lý những chuyến đi bạn tạo hoặc đang tham gia.',
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  color: AppColors.muted,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 13),
-                  SizedBox(
-                    height: 42,
-                    child: TextField(
-                      controller: _search,
-                      onChanged: (_) => setState(() {}),
-                      textInputAction: TextInputAction.search,
-                      onSubmitted: (_) => _submitSearch(),
-                      style: const TextStyle(fontSize: 11),
-                      decoration: InputDecoration(
-                        hintText: 'Tìm chuyến đi hoặc điểm đến...',
-                        hintStyle: const TextStyle(fontSize: 10.5),
-                        prefixIcon: const Icon(Icons.search_rounded, size: 18),
-                        suffixIcon: _search.text.isEmpty
-                            ? null
-                            : IconButton(
-                                onPressed: () {
-                                  _search.clear();
-                                  _submitSearch();
-                                },
-                                icon: const Icon(Icons.close_rounded, size: 17),
-                              ),
-                      ),
+                        _TotalBadge(
+                          loading: _loading,
+                          total: _total,
+                          publicView: _publicView,
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -196,7 +217,7 @@ class _GroupTripsScreenState extends ConsumerState<GroupTripsScreen> {
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
               sliver: SliverList.separated(
                 itemCount: 3,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                separatorBuilder: (_, _) => const SizedBox(height: 16),
                 itemBuilder: (_, _) => const _GroupTripSkeleton(),
               ),
             )
@@ -210,9 +231,13 @@ class _GroupTripsScreenState extends ConsumerState<GroupTripsScreen> {
               hasScrollBody: false,
               child: AppEmptyState(
                 icon: Icons.groups_outlined,
-                title: 'Chưa có chuyến đi nhóm',
+                title: _publicView
+                    ? 'Chưa có chuyến đi công khai'
+                    : 'Bạn chưa có chuyến đi nhóm',
                 subtitle: _search.text.trim().isEmpty
-                    ? 'Tạo chuyến đi đầu tiên và mời bạn bè tham gia.'
+                    ? _publicView
+                          ? 'Hiện chưa có hành trình cộng đồng nào để khám phá.'
+                          : 'Tạo chuyến đi đầu tiên và mời bạn bè tham gia.'
                     : 'Không tìm thấy chuyến đi phù hợp.',
               ),
             )
@@ -222,7 +247,10 @@ class _GroupTripsScreenState extends ConsumerState<GroupTripsScreen> {
               sliver: SliverList.separated(
                 itemCount: _items.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (_, index) => _GroupTripCard(item: _items[index]),
+                itemBuilder: (_, index) => _GroupTripCard(
+                  item: _items[index],
+                  publicView: _publicView,
+                ),
               ),
             ),
             SliverToBoxAdapter(
@@ -243,18 +271,274 @@ class _GroupTripsScreenState extends ConsumerState<GroupTripsScreen> {
   );
 }
 
+class _PublicTripsHero extends StatelessWidget {
+  const _PublicTripsHero({
+    required this.search,
+    required this.onChanged,
+    required this.onSearch,
+  });
+
+  final TextEditingController search;
+  final VoidCallback onChanged;
+  final VoidCallback onSearch;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(minHeight: 270),
+    padding: const EdgeInsets.fromLTRB(18, 30, 18, 22),
+    decoration: const BoxDecoration(
+      image: DecorationImage(
+        image: CachedNetworkImageProvider(
+          'https://images.unsplash.com/photo-1528702748617-c64d49f918af?auto=format&fit=crop&w=1000&q=80',
+        ),
+        fit: BoxFit.cover,
+        colorFilter: ColorFilter.mode(Color(0xAA071D33), BlendMode.darken),
+      ),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'TRẢI NGHIỆM TỐT HƠN KHI CÓ NHAU',
+          style: TextStyle(
+            color: Color(0xFF67E8F9),
+            fontSize: 9,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Travel Better,\nTogether',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 27,
+            height: 1.08,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Khám phá hành trình cộng đồng, gặp gỡ bạn đồng hành và cùng tạo nên những kỷ niệm đáng nhớ.',
+          style: TextStyle(color: Colors.white70, fontSize: 10.5, height: 1.4),
+        ),
+        const SizedBox(height: 18),
+        Container(
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: const [
+              BoxShadow(color: Color(0x33000000), blurRadius: 16),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.accentLight,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: const Icon(
+                  Icons.search_rounded,
+                  size: 19,
+                  color: AppColors.brand,
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: TextField(
+                  controller: search,
+                  onChanged: (_) => onChanged(),
+                  onSubmitted: (_) => onSearch(),
+                  textInputAction: TextInputAction.search,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: 'Tìm chuyến đi hoặc điểm đến...',
+                    hintStyle: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    filled: false,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    suffixIcon: search.text.isEmpty
+                        ? null
+                        : IconButton(
+                            onPressed: () {
+                              search.clear();
+                              onSearch();
+                            },
+                            icon: const Icon(Icons.close_rounded, size: 17),
+                          ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 5),
+              SizedBox(
+                height: 40,
+                child: FilledButton(
+                  onPressed: onSearch,
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                  ),
+                  child: const Text(
+                    'Khám phá',
+                    style: TextStyle(fontSize: 9.5),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _TotalBadge extends StatelessWidget {
+  const _TotalBadge({
+    required this.loading,
+    required this.total,
+    required this.publicView,
+  });
+
+  final bool loading;
+  final int total;
+  final bool publicView;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(15),
+      border: Border.all(color: AppColors.border),
+    ),
+    child: Text(
+      loading
+          ? 'Đang tải...'
+          : publicView
+          ? '$total công khai'
+          : '$total của tôi',
+      style: const TextStyle(
+        fontSize: 9,
+        fontWeight: FontWeight.w800,
+        color: AppColors.muted,
+      ),
+    ),
+  );
+}
+
+class _GroupTripViewSwitch extends StatelessWidget {
+  const _GroupTripViewSwitch({
+    required this.publicView,
+    required this.onChanged,
+  });
+
+  final bool publicView;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 46,
+    padding: const EdgeInsets.all(4),
+    decoration: BoxDecoration(
+      color: AppColors.borderLight,
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: _GroupTripViewOption(
+            label: 'Công khai',
+            icon: Icons.public_rounded,
+            selected: publicView,
+            onTap: () => onChanged(true),
+          ),
+        ),
+        Expanded(
+          child: _GroupTripViewOption(
+            label: 'Của tôi',
+            icon: Icons.person_outline_rounded,
+            selected: !publicView,
+            onTap: () => onChanged(false),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _GroupTripViewOption extends StatelessWidget {
+  const _GroupTripViewOption({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: selected ? Colors.white : Colors.transparent,
+    borderRadius: BorderRadius.circular(11),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(11),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            size: 16,
+            color: selected ? AppColors.brand : AppColors.muted,
+          ),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              color: selected ? AppColors.brand : AppColors.muted,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _GroupTripCard extends StatelessWidget {
-  const _GroupTripCard({required this.item});
+  const _GroupTripCard({required this.item, required this.publicView});
   final Map<String, dynamic> item;
+  final bool publicView;
 
   @override
   Widget build(BuildContext context) {
     final id = _tripId(item);
-    final name = '${item['name'] ?? 'Chuyến đi nhóm'}';
-    final destination =
-        '${item['destination_name'] ?? 'Điểm đến đang cập nhật'}';
-    final image = AppConfig.assetUrl(
-      '${item['cover_image'] ?? item['thumbnail_url'] ?? item['image_url'] ?? ''}',
+    final name = '${item['name'] ?? 'Chuyến đi cộng đồng'}';
+    final destination = '${item['destination_name'] ?? 'Điểm đến linh hoạt'}';
+    final description =
+        '${item['description'] ?? 'Một chuyến đi cộng đồng đang chờ những người bạn đồng hành và kỷ niệm mới.'}';
+    final leaderRaw = item['leader'];
+    final leader = leaderRaw is Map
+        ? '${leaderRaw['name'] ?? 'Thành viên Travel360'}'
+        : '${item['leader_name'] ?? 'Thành viên Travel360'}';
+    final avatar = AppConfig.assetUrl(
+      '${leaderRaw is Map ? leaderRaw['avatar_url'] ?? '' : item['leader_avatar_url'] ?? ''}',
     );
     final members = _integer(item['member_count']);
     final maximum = _integer(item['max_members']);
@@ -264,120 +548,175 @@ class _GroupTripCard extends StatelessWidget {
 
     return InkWell(
       onTap: id > 0 ? () => context.push('/group-trips/$id') : null,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(18),
       child: Container(
-        height: 136,
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          color: const Color(0xFF174B67),
-          border: Border.all(color: AppColors.borderLight),
+          borderRadius: BorderRadius.circular(18),
+          color: Colors.white,
+          border: Border.all(color: AppColors.border),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0C000000),
+              blurRadius: 14,
+              offset: Offset(0, 5),
+            ),
+          ],
         ),
-        child: Stack(
-          fit: StackFit.expand,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (image.isNotEmpty)
-              CachedNetworkImage(imageUrl: image, fit: BoxFit.cover)
-            else
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF2563EB), Color(0xFF0891B2)],
-                  ),
-                ),
-              ),
-            const DecoratedBox(
-              decoration: BoxDecoration(
+            Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(minHeight: 112),
+              padding: const EdgeInsets.fromLTRB(16, 15, 16, 16),
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0x18000000), Color(0xD9000000)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF1D4ED8),
+                    Color(0xFF2563EB),
+                    Color(0xFF06B6D4),
+                  ],
                 ),
               ),
-            ),
-            Positioned(
-              top: 10,
-              right: 10,
-              child: _VisibilityBadge(
-                visibility: '${item['visibility'] ?? 'private'}',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _VisibilityBadge(
+                        visibility: publicView
+                            ? 'public'
+                            : '${item['visibility'] ?? 'private'}',
+                      ),
+                      const Spacer(),
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0x26FFFFFF),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_outward_rounded,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      height: 1.25,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
               ),
             ),
-            Positioned(
-              left: 12,
-              right: 12,
-              bottom: 10,
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    name,
-                    maxLines: 1,
+                    description,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
+                      color: AppColors.muted,
+                      fontSize: 10.5,
+                      height: 1.45,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 14),
                   Row(
                     children: [
-                      const Icon(
-                        Icons.location_on_outlined,
-                        size: 12,
-                        color: Colors.white70,
-                      ),
-                      const SizedBox(width: 3),
                       Expanded(
-                        child: Text(
-                          destination,
+                        child: _TripInfo(
+                          icon: Icons.location_on_outlined,
+                          label: 'ĐIỂM ĐẾN',
+                          value: destination,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _TripInfo(
+                          icon: Icons.calendar_month_outlined,
+                          label: 'THỜI GIAN',
+                          value: _dateRange(
+                            item['start_date'],
+                            item['end_date'],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 17),
+                  Row(
+                    children: [
+                      _LeaderAvatar(name: leader, image: avatar),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: RichText(
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 9,
+                          text: TextSpan(
+                            style: const TextStyle(
+                              fontSize: 9.5,
+                              color: AppColors.muted,
+                            ),
+                            children: [
+                              const TextSpan(text: 'Dẫn đoàn bởi '),
+                              TextSpan(
+                                text: leader,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.dark,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 5),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _dateRange(item['start_date'], item['end_date']),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                      const Icon(
+                        Icons.groups_outlined,
+                        size: 14,
+                        color: AppColors.muted,
                       ),
+                      const SizedBox(width: 4),
                       Text(
-                        maximum > 0
-                            ? '$members/$maximum thành viên'
-                            : '$members thành viên',
+                        maximum > 0 ? '$members/$maximum' : '$members',
                         style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w600,
+                          color: AppColors.dark,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 5),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 3,
-                      backgroundColor: Colors.white30,
-                      valueColor: const AlwaysStoppedAnimation(Colors.white),
+                  if (maximum > 0) ...[
+                    const SizedBox(height: 11),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 5,
+                        backgroundColor: AppColors.borderLight,
+                        valueColor: const AlwaysStoppedAnimation(
+                          AppColors.brand,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -386,6 +725,82 @@ class _GroupTripCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TripInfo extends StatelessWidget {
+  const _TripInfo({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(minHeight: 58),
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 12, color: AppColors.brand),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                style: const TextStyle(
+                  fontSize: 8,
+                  letterSpacing: .5,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.subtle,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800),
+        ),
+      ],
+    ),
+  );
+}
+
+class _LeaderAvatar extends StatelessWidget {
+  const _LeaderAvatar({required this.name, required this.image});
+
+  final String name;
+  final String image;
+
+  @override
+  Widget build(BuildContext context) => CircleAvatar(
+    radius: 17,
+    backgroundColor: AppColors.accentLight,
+    backgroundImage: image.isEmpty ? null : CachedNetworkImageProvider(image),
+    child: image.isNotEmpty
+        ? null
+        : Text(
+            _initials(name),
+            style: const TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              color: AppColors.brand,
+            ),
+          ),
+  );
 }
 
 class _VisibilityBadge extends StatelessWidget {
@@ -729,8 +1144,8 @@ class _GroupTripSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const AppShimmerBox(
     width: double.infinity,
-    height: 136,
-    borderRadius: 14,
+    height: 304,
+    borderRadius: 18,
   );
 }
 
@@ -799,6 +1214,19 @@ int _destinationItemId(Map item) =>
     0;
 String _destinationItemName(Map item) =>
     '${item['name'] ?? item['title'] ?? 'Địa điểm #${_destinationItemId(item)}'}';
+
+String _initials(String name) {
+  final words = name.trim().split(RegExp(r'\s+'));
+  return words
+      .where((word) => word.isNotEmpty)
+      .toList()
+      .reversed
+      .take(2)
+      .toList()
+      .reversed
+      .map((word) => word[0].toUpperCase())
+      .join();
+}
 
 String _dateRange(dynamic start, dynamic end) {
   final startDate = DateTime.tryParse('${start ?? ''}')?.toLocal();

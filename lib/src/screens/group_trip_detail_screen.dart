@@ -68,9 +68,13 @@ class _GroupTripDetailScreenState extends ConsumerState<GroupTripDetailScreen>
       _error = null;
     });
     try {
-      final response = await ref
-          .read(dioProvider)
-          .get('/group-trips/${widget.id}');
+      final dio = ref.read(dioProvider);
+      dynamic response;
+      try {
+        response = await dio.get('/group-trips/${widget.id}');
+      } catch (_) {
+        response = await dio.get('/group-trips/public/${widget.id}');
+      }
       if (!mounted) return;
       setState(() => _trip = _unwrapTrip(response.data));
     } catch (error) {
